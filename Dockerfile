@@ -61,7 +61,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all npm dependencies
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Install Patchright Chromium at build time
 # --with-deps skipped here since we installed deps via apt-get above
