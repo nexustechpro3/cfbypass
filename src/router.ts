@@ -4,7 +4,7 @@ import { validateBypass, validateUrl, requireSiteKey } from './middleware/valida
 import { bypassCloudflare } from './solvers/cloudflare'
 import { solveTurnstileMin } from './solvers/turnstileMin'
 import { solveTurnstileMax } from './solvers/turnstileMax'
-import { solveCfcfbypass } from './solvers/cfcfbypass'
+import { solveCfClearance } from './solvers/cfClearance'
 import { getWafSession } from './solvers/cfWaf'
 import { solveAwsWaf } from './solvers/awsWaf'
 import { solveHcaptcha } from './solvers/hcaptcha'
@@ -61,7 +61,7 @@ async function run(req: BypassRequest): Promise<unknown> {
     case 'cloudflare':     return bypassCloudflare(req)
     case 'turnstile-min':  return solveTurnstileMin(req)
     case 'turnstile-max':  return solveTurnstileMax(req)
-    case 'cf-cfbypass':   return solveCfcfbypass(req)
+    case 'cf-clearance':   return solveCfClearance(req)
     case 'waf-session':    return getWafSession(req)
     case 'source':         return getPageSource(req)
     case 'hcaptcha':       return solveHcaptcha(req)
@@ -161,7 +161,7 @@ router.post('/bypass/batch', guard, async (req, res) => {
 router.post('/cloudflare',    guard, validateBypass, (req, res) => handleSolve(req, res, { mode: 'cloudflare' }))
 router.post('/turnstile-min', guard, validateUrl, requireSiteKey, (req, res) => handleSolve(req, res, { mode: 'turnstile-min' }))
 router.post('/turnstile-max', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'turnstile-max' }))
-router.post('/cf-cfbypass',  guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'cf-cfbypass' }))
+router.post('/cf-clearance',  guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'cf-clearance' }))
 router.post('/waf-session',   guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'waf-session' }))
 router.post('/source',        guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'source' }))
 router.post('/hcaptcha',      guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'hcaptcha' }))

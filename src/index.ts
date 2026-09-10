@@ -14,7 +14,7 @@ async function start(): Promise<void> {
 
   await new Promise<void>(resolve => {
     server.listen(PORT, () => {
-      console.log(`[Nexuscfbypass] Server listening on port ${PORT}`)
+      console.log(`[NexusClearance] Server listening on port ${PORT}`)
       resolve()
     })
   })
@@ -29,27 +29,27 @@ async function start(): Promise<void> {
   try {
     await initBrowser()
     await warmPool()
-    console.log('[Nexuscfbypass] Ready')
+    console.log('[NexusClearance] Ready')
   } catch (err) {
-    console.error('[Nexuscfbypass] Browser init failed:', err)
+    console.error('[NexusClearance] Browser init failed:', err)
     // Don't crash — let health endpoint report "starting" until retry
     // Retry after 5s
     setTimeout(() => {
       initBrowser()
         .then(() => warmPool())
-        .then(() => console.log('[Nexuscfbypass] Browser ready (retry)'))
-        .catch(e => console.error('[Nexuscfbypass] Browser retry failed:', e))
+        .then(() => console.log('[NexusClearance] Browser ready (retry)'))
+        .catch(e => console.error('[NexusClearance] Browser retry failed:', e))
     }, 5000)
   }
 
   // Graceful shutdown
   async function shutdown(signal: string): Promise<void> {
-    console.log(`[Nexuscfbypass] ${signal} received — shutting down`)
+    console.log(`[NexusClearance] ${signal} received — shutting down`)
     stopMemoryManager()
     stopProxyManager()
     await shutdownBrowser()
     server.close(() => {
-      console.log('[Nexuscfbypass] HTTP server closed')
+      console.log('[NexusClearance] HTTP server closed')
       process.exit(0)
     })
     setTimeout(() => process.exit(1), 10000)
@@ -60,6 +60,6 @@ async function start(): Promise<void> {
 }
 
 start().catch(err => {
-  console.error('[Nexuscfbypass] Fatal startup error:', err)
+  console.error('[NexusClearance] Fatal startup error:', err)
   process.exit(1)
 })

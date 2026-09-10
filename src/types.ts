@@ -3,7 +3,7 @@ export type SolverMode =
   | 'cloudflare'
   | 'turnstile-min'
   | 'turnstile-max'
-  | 'cf-cfbypass'
+  | 'cf-clearance'
   | 'waf-session'
   | 'source'
   | 'hcaptcha'
@@ -102,7 +102,7 @@ export interface BypassRequest {
 
 export interface BypassResult {
   token: string | null
-  cf_cfbypass: string | null
+  cf_clearance: string | null
   __cf_bm: string | null
   aws_waf_token: string | null
   cookies: CookieParam[]

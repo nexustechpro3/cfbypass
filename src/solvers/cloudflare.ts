@@ -4,7 +4,7 @@ import { runActions } from '../actions/runner'
 import {
   withCtx,
   setupPage,
-  waitForcfbypass,
+  waitForClearance,
   waitForCF,
   waitForToken,
   toPwCookies,
@@ -72,16 +72,16 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     // Navigate to target
     await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
 
-    // Poll for cf_cfbypass — definitive solved signal
-    let cfcfbypass = await waitForcfbypass(page)
+    // Poll for cf_clearance — definitive solved signal
+    let cfClearance = await waitForClearance(page)
 
     // Fallback: text check (some CF configs don't issue the cookie)
-    if (!cfcfbypass) {
+    if (!cfClearance) {
       const cleared = await waitForCF(page, 30000)
       if (cleared) {
         const cookies = await ctx.cookies()
-        const ck = cookies.find(c => c.name === 'cf_cfbypass')
-        cfcfbypass = ck?.value ?? null
+        const ck = cookies.find(c => c.name === 'cf_clearance')
+        cfClearance = ck?.value ?? null
       }
     }
 
@@ -121,7 +121,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
 
     return {
       token,
-      cf_cfbypass: cfcfbypass,
+      cf_clearance: cfClearance,
       __cf_bm: cfBm,
       aws_waf_token: awsWafToken,
       cookies: cfCookies,

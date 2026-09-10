@@ -1,331 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus CfBypass — Usage</title>
-  <style>
-    :root {
-      --bg: #0d0f14;
-      --surface: #161920;
-      --border: #252830;
-      --text: #e2e4ea;
-      --muted: #6b7280;
-      --accent: #6366f1;
-      --green: #22c55e;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    .logo {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .nav {
-      display: flex;
-      gap: 16px;
-      font-size: 13px;
-    }
-
-    .nav a {
-      color: var(--muted);
-      padding: 4px 8px;
-      border-radius: 4px;
-      text-decoration: none;
-    }
-
-    .nav a.active,
-    .nav a:hover {
-      color: var(--text);
-      background: var(--border);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .sidebar {
-      padding: 24px 16px;
-      position: sticky;
-      top: 57px;
-      height: calc(100vh - 57px);
-      overflow-y: auto;
-      border-right: 1px solid var(--border);
-    }
-
-    .sidebar a {
-      display: block;
-      color: var(--muted);
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 13px;
-      text-decoration: none;
-    }
-
-    .sidebar a:hover {
-      color: var(--text);
-      background: var(--border);
-    }
-
-    .sidebar h4 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--muted);
-      margin: 16px 0 6px;
-      padding-left: 10px;
-    }
-
-    .content {
-      padding: 32px 40px;
-      max-width: 800px;
-    }
-
-    h1 {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    h2 {
-      font-size: 20px;
-      font-weight: 700;
-      margin: 40px 0 12px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
-
-    h2:first-of-type {
-      border-top: none;
-      margin-top: 20px;
-    }
-
-    h3 {
-      font-size: 15px;
-      font-weight: 600;
-      margin: 24px 0 8px;
-      color: var(--accent);
-    }
-
-    p {
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
-
-    .method {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-right: 6px;
-    }
-
-    .method.post {
-      background: #1e3a5f;
-      color: #60a5fa;
-    }
-
-    .method.get {
-      background: #14532d;
-      color: var(--green);
-    }
-
-    .endpoint {
-      display: flex;
-      align-items: center;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 10px;
-      font-family: monospace;
-      font-size: 13px;
-    }
-
-    code {
-      background: var(--border);
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 12px;
-    }
-
-    pre {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      font-size: 12px;
-      font-family: 'JetBrains Mono', monospace;
-      overflow-x: auto;
-      margin: 10px 0 16px;
-      position: relative;
-    }
-
-    .copy-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: var(--border);
-      border: none;
-      color: var(--text);
-      border-radius: 4px;
-      padding: 3px 8px;
-      font-size: 11px;
-      cursor: pointer;
-    }
-
-    .copy-btn:hover {
-      background: var(--accent);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 10px 0 20px;
-      font-size: 13px;
-    }
-
-    th {
-      background: var(--surface);
-      text-align: left;
-      padding: 8px 12px;
-      color: var(--muted);
-      font-weight: 600;
-      border-bottom: 1px solid var(--border);
-    }
-
-    td {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    td:first-child {
-      font-family: monospace;
-      font-size: 12px;
-      color: var(--accent);
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .tag.required {
-      background: #3b1717;
-      color: #f87171;
-    }
-
-    .tag.optional {
-      background: #1e3a1e;
-      color: var(--green);
-    }
-
-    @media (max-width:768px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .sidebar {
-        display: none;
-      }
-
-      .content {
-        padding: 20px;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusClearance — Usage</title>
+<style>
+  :root { --bg:#0d0f14; --surface:#161920; --border:#252830; --text:#e2e4ea; --muted:#6b7280; --accent:#6366f1; --green:#22c55e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; font-size:14px; line-height:1.6; }
+  .header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:10; }
+  .logo { font-size:18px; font-weight:700; color:var(--accent); }
+  .nav { display:flex; gap:16px; font-size:13px; }
+  .nav a { color:var(--muted); padding:4px 8px; border-radius:4px; text-decoration:none; }
+  .nav a.active, .nav a:hover { color:var(--text); background:var(--border); }
+  .layout { display:grid; grid-template-columns:220px 1fr; max-width:1200px; margin:0 auto; }
+  .sidebar { padding:24px 16px; position:sticky; top:57px; height:calc(100vh - 57px); overflow-y:auto; border-right:1px solid var(--border); }
+  .sidebar a { display:block; color:var(--muted); padding:5px 10px; border-radius:4px; font-size:13px; text-decoration:none; }
+  .sidebar a:hover { color:var(--text); background:var(--border); }
+  .sidebar h4 { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin:16px 0 6px; padding-left:10px; }
+  .content { padding:32px 40px; max-width:800px; }
+  h1 { font-size:28px; font-weight:700; margin-bottom:8px; }
+  h2 { font-size:20px; font-weight:700; margin:40px 0 12px; padding-top:20px; border-top:1px solid var(--border); }
+  h2:first-of-type { border-top:none; margin-top:20px; }
+  h3 { font-size:15px; font-weight:600; margin:24px 0 8px; color:var(--accent); }
+  p { color:var(--muted); margin-bottom:12px; }
+  .method { display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-right:6px; }
+  .method.post { background:#1e3a5f; color:#60a5fa; }
+  .method.get { background:#14532d; color:var(--green); }
+  .endpoint { display:flex; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:10px; font-family:monospace; font-size:13px; }
+  code { background:var(--border); padding:1px 6px; border-radius:3px; font-family:monospace; font-size:12px; }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; font-size:12px; font-family:'JetBrains Mono',monospace; overflow-x:auto; margin:10px 0 16px; position:relative; }
+  .copy-btn { position:absolute; top:8px; right:8px; background:var(--border); border:none; color:var(--text); border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; }
+  .copy-btn:hover { background:var(--accent); }
+  table { width:100%; border-collapse:collapse; margin:10px 0 20px; font-size:13px; }
+  th { background:var(--surface); text-align:left; padding:8px 12px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); }
+  td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  td:first-child { font-family:monospace; font-size:12px; color:var(--accent); }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+  .tag.required { background:#3b1717; color:#f87171; }
+  .tag.optional { background:#1e3a1e; color:var(--green); }
+  @media (max-width:768px) { .layout { grid-template-columns:1fr; } .sidebar { display:none; } .content { padding:20px; } }
+</style>
 </head>
-
 <body>
-  <div class="header">
-    <span class="logo">Nexuscfbypass</span>
-    <nav class="nav">
-      <a href="/">Dashboard</a>
-      <a href="/test">Test</a>
-      <a href="/usage" class="active">Usage</a>
-    </nav>
+<div class="header">
+  <span class="logo">NexusClearance</span>
+  <nav class="nav">
+    <a href="/">Dashboard</a>
+    <a href="/test">Test</a>
+    <a href="/usage" class="active">Usage</a>
+  </nav>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <h4>Getting Started</h4>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#flaresolverr">FlareSolverr Migration</a>
+    <h4>Core Endpoints</h4>
+    <a href="#bypass">POST /bypass</a>
+    <a href="#batch">POST /bypass/batch</a>
+    <a href="#modes">Shorthand Modes</a>
+    <h4>Jobs & Sessions</h4>
+    <a href="#jobs">Job Queue</a>
+    <a href="#sessions">Sessions</a>
+    <h4>Proxy</h4>
+    <a href="#proxy">Proxy Endpoints</a>
+    <h4>Reference</h4>
+    <a href="#env">Environment Variables</a>
+    <a href="#errors">Error Codes</a>
+    <a href="#solver-table">Solver Comparison</a>
   </div>
 
-  <div class="layout">
-    <div class="sidebar">
-      <h4>Getting Started</h4>
-      <a href="#quickstart">Quick Start</a>
-      <a href="#flaresolverr">FlareSolverr Migration</a>
-      <h4>Core Endpoints</h4>
-      <a href="#bypass">POST /bypass</a>
-      <a href="#batch">POST /bypass/batch</a>
-      <a href="#modes">Shorthand Modes</a>
-      <h4>Jobs & Sessions</h4>
-      <a href="#jobs">Job Queue</a>
-      <a href="#sessions">Sessions</a>
-      <h4>Proxy</h4>
-      <a href="#proxy">Proxy Endpoints</a>
-      <h4>Reference</h4>
-      <a href="#env">Environment Variables</a>
-      <a href="#errors">Error Codes</a>
-      <a href="#solver-table">Solver Comparison</a>
-    </div>
+  <div class="content">
+    <h1>NexusClearance API</h1>
+    <p>A self-hosted HTTP microservice for solving Cloudflare challenges, AWS WAF, and CAPTCHAs via a real patched Chromium browser.</p>
 
-    <div class="content">
-      <h1>Nexuscfbypass API</h1>
-      <p>A self-hosted HTTP microservice for solving Cloudflare challenges, AWS WAF, and CAPTCHAs via a real patched
-        Chromium browser.</p>
-
-      <h2 id="quickstart">Quick Start</h2>
-      <h3>Docker</h3>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>docker run -d \
+    <h2 id="quickstart">Quick Start</h2>
+    <h3>Docker</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>docker run -d \
   -p 3000:3000 \
   --shm-size=2g \
   --cap-add=SYS_ADMIN \
-  nexustechpro3/cfbypass:latest</pre>
+  nexustechpro/clearance:latest</pre>
 
-      <h3>First Request</h3>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>curl -X POST http://localhost:3000/bypass \
+    <h3>First Request</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>curl -X POST http://localhost:3000/bypass \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com","mode":"cloudflare"}'</pre>
 
-      <h3>Response</h3>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
+    <h3>Response</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
   "success": true,
   "data": {
-    "cf_cfbypass": "abc123...",
+    "cf_clearance": "abc123...",
     "userAgent": "Mozilla/5.0 ...",
-    "cookies": [ { "name": "cf_cfbypass", "value": "abc123...", ... } ],
+    "cookies": [ { "name": "cf_clearance", "value": "abc123...", ... } ],
     "title": "Example Domain",
     "finalUrl": "https://example.com/",
     "solveMs": 4200,
@@ -333,119 +103,39 @@
   }
 }</pre>
 
-      <h2 id="flaresolverr">FlareSolverr Migration</h2>
-      <p>Nexuscfbypass is a drop-in replacement for FlareSolverr v3.x. Change one setting in your tool (Prowlarr,
-        Jackett, etc.):</p>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button># Before
+    <h2 id="flaresolverr">FlareSolverr Migration</h2>
+    <p>NexusClearance is a drop-in replacement for FlareSolverr v3.x. Change one setting in your tool (Prowlarr, Jackett, etc.):</p>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button># Before
 FlareSolverr URL: http://flaresolverr:8191
 
 # After — that's it
-FlareSolverr URL: http://nexus-cfbypass:3000</pre>
-      <p>The <code>/v1</code> endpoint accepts identical request/response shapes including session management.</p>
+FlareSolverr URL: http://nexus-clearance:3000</pre>
+    <p>The <code>/v1</code> endpoint accepts identical request/response shapes including session management.</p>
 
-      <h2 id="bypass">POST /bypass</h2>
-      <p>Universal solver endpoint. Supports all 10 solver modes.</p>
-      <div class="endpoint"><span class="method post">POST</span>/bypass</div>
-      <table>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>url</td>
-          <td>string</td>
-          <td><span class="tag required">required</span></td>
-          <td>Target URL to solve</td>
-        </tr>
-        <tr>
-          <td>mode</td>
-          <td>string</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Solver mode (default: cloudflare)</td>
-        </tr>
-        <tr>
-          <td>siteKey</td>
-          <td>string</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Required for turnstile-min</td>
-        </tr>
-        <tr>
-          <td>waitFor</td>
-          <td>number</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>ms to wait after solve (max 10000)</td>
-        </tr>
-        <tr>
-          <td>getPageSource</td>
-          <td>boolean</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Include full HTML in response</td>
-        </tr>
-        <tr>
-          <td>useProxy</td>
-          <td>boolean</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Use auto proxy from pool</td>
-        </tr>
-        <tr>
-          <td>proxy</td>
-          <td>object</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Manual proxy: {host, port, protocol, username, password}</td>
-        </tr>
-        <tr>
-          <td>country</td>
-          <td>string</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Proxy country filter: HK, KH, TW, KR, VN</td>
-        </tr>
-        <tr>
-          <td>setCookies</td>
-          <td>array</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Inject cookies before navigation</td>
-        </tr>
-        <tr>
-          <td>intercept</td>
-          <td>array</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Capture in-flight responses: [{url, type}]</td>
-        </tr>
-        <tr>
-          <td>actions</td>
-          <td>array</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Actions pipeline (see below)</td>
-        </tr>
-        <tr>
-          <td>sessionId</td>
-          <td>string</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Reuse named browser context</td>
-        </tr>
-        <tr>
-          <td>async</td>
-          <td>boolean</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>Fire-and-forget, returns jobId</td>
-        </tr>
-        <tr>
-          <td>webhook</td>
-          <td>object</td>
-          <td><span class="tag optional">optional</span></td>
-          <td>POST result to URL when done: {url, method, headers}</td>
-        </tr>
-      </table>
+    <h2 id="bypass">POST /bypass</h2>
+    <p>Universal solver endpoint. Supports all 10 solver modes.</p>
+    <div class="endpoint"><span class="method post">POST</span>/bypass</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td>url</td><td>string</td><td><span class="tag required">required</span></td><td>Target URL to solve</td></tr>
+      <tr><td>mode</td><td>string</td><td><span class="tag optional">optional</span></td><td>Solver mode (default: cloudflare)</td></tr>
+      <tr><td>siteKey</td><td>string</td><td><span class="tag optional">optional</span></td><td>Required for turnstile-min</td></tr>
+      <tr><td>waitFor</td><td>number</td><td><span class="tag optional">optional</span></td><td>ms to wait after solve (max 10000)</td></tr>
+      <tr><td>getPageSource</td><td>boolean</td><td><span class="tag optional">optional</span></td><td>Include full HTML in response</td></tr>
+      <tr><td>useProxy</td><td>boolean</td><td><span class="tag optional">optional</span></td><td>Use auto proxy from pool</td></tr>
+      <tr><td>proxy</td><td>object</td><td><span class="tag optional">optional</span></td><td>Manual proxy: {host, port, protocol, username, password}</td></tr>
+      <tr><td>country</td><td>string</td><td><span class="tag optional">optional</span></td><td>Proxy country filter: HK, KH, TW, KR, VN</td></tr>
+      <tr><td>setCookies</td><td>array</td><td><span class="tag optional">optional</span></td><td>Inject cookies before navigation</td></tr>
+      <tr><td>intercept</td><td>array</td><td><span class="tag optional">optional</span></td><td>Capture in-flight responses: [{url, type}]</td></tr>
+      <tr><td>actions</td><td>array</td><td><span class="tag optional">optional</span></td><td>Actions pipeline (see below)</td></tr>
+      <tr><td>sessionId</td><td>string</td><td><span class="tag optional">optional</span></td><td>Reuse named browser context</td></tr>
+      <tr><td>async</td><td>boolean</td><td><span class="tag optional">optional</span></td><td>Fire-and-forget, returns jobId</td></tr>
+      <tr><td>webhook</td><td>object</td><td><span class="tag optional">optional</span></td><td>POST result to URL when done: {url, method, headers}</td></tr>
+    </table>
 
-      <h3>Actions Pipeline</h3>
-      <p>14 action types: <code>click</code>, <code>type</code>, <code>scroll</code>, <code>hover</code>,
-        <code>select</code>, <code>keypress</code>, <code>wait</code>, <code>navigate</code>,
-        <code>waitForSelector</code>, <code>waitForText</code>, <code>waitForURL</code>, <code>evaluate</code>,
-        <code>evaluateAndReturn</code>, <code>screenshot</code>.
-      </p>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>"actions": [
+    <h3>Actions Pipeline</h3>
+    <p>14 action types: <code>click</code>, <code>type</code>, <code>scroll</code>, <code>hover</code>, <code>select</code>, <code>keypress</code>, <code>wait</code>, <code>navigate</code>, <code>waitForSelector</code>, <code>waitForText</code>, <code>waitForURL</code>, <code>evaluate</code>, <code>evaluateAndReturn</code>, <code>screenshot</code>.</p>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>"actions": [
   { "type": "click", "selector": "#login-btn" },
   { "type": "type", "selector": "#email", "value": "user@example.com" },
   { "type": "wait", "ms": 500 },
@@ -453,277 +143,104 @@ FlareSolverr URL: http://nexus-cfbypass:3000</pre>
   { "type": "screenshot", "name": "after_login", "fullPage": false }
 ]</pre>
 
-      <h2 id="batch">POST /bypass/batch</h2>
-      <div class="endpoint"><span class="method post">POST</span>/bypass/batch</div>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
+    <h2 id="batch">POST /bypass/batch</h2>
+    <div class="endpoint"><span class="method post">POST</span>/bypass/batch</div>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
   "requests": [
     { "url": "https://site1.com", "mode": "cloudflare" },
-    { "url": "https://site2.com", "mode": "cf-cfbypass" }
+    { "url": "https://site2.com", "mode": "cf-clearance" }
   ]
 }
 // Response: { "success": true, "data": { "jobs": [{ "jobId": "uuid", "url": "..." }] } }</pre>
 
-      <h2 id="modes">Shorthand Mode Endpoints</h2>
-      <table>
-        <tr>
-          <th>Endpoint</th>
-          <th>Mode</th>
-          <th>Returns</th>
-        </tr>
-        <tr>
-          <td>POST /cloudflare</td>
-          <td>cloudflare</td>
-          <td>Full BypassResult</td>
-        </tr>
-        <tr>
-          <td>POST /turnstile-min</td>
-          <td>turnstile-min</td>
-          <td>{token}</td>
-        </tr>
-        <tr>
-          <td>POST /turnstile-max</td>
-          <td>turnstile-max</td>
-          <td>{token}</td>
-        </tr>
-        <tr>
-          <td>POST /cf-cfbypass</td>
-          <td>cf-cfbypass</td>
-          <td>{cf_cfbypass, userAgent}</td>
-        </tr>
-        <tr>
-          <td>POST /waf-session</td>
-          <td>waf-session</td>
-          <td>{cookies, headers}</td>
-        </tr>
-        <tr>
-          <td>POST /source</td>
-          <td>source</td>
-          <td>{source}</td>
-        </tr>
-        <tr>
-          <td>POST /hcaptcha</td>
-          <td>hcaptcha</td>
-          <td>{token}</td>
-        </tr>
-        <tr>
-          <td>POST /recaptcha-v2</td>
-          <td>recaptcha-v2</td>
-          <td>{token}</td>
-        </tr>
-        <tr>
-          <td>POST /recaptcha-v3</td>
-          <td>recaptcha-v3</td>
-          <td>{token, score}</td>
-        </tr>
-        <tr>
-          <td>POST /aws-waf</td>
-          <td>aws-waf</td>
-          <td>{aws_waf_token, cookies}</td>
-        </tr>
-      </table>
+    <h2 id="modes">Shorthand Mode Endpoints</h2>
+    <table>
+      <tr><th>Endpoint</th><th>Mode</th><th>Returns</th></tr>
+      <tr><td>POST /cloudflare</td><td>cloudflare</td><td>Full BypassResult</td></tr>
+      <tr><td>POST /turnstile-min</td><td>turnstile-min</td><td>{token}</td></tr>
+      <tr><td>POST /turnstile-max</td><td>turnstile-max</td><td>{token}</td></tr>
+      <tr><td>POST /cf-clearance</td><td>cf-clearance</td><td>{cf_clearance, userAgent}</td></tr>
+      <tr><td>POST /waf-session</td><td>waf-session</td><td>{cookies, headers}</td></tr>
+      <tr><td>POST /source</td><td>source</td><td>{source}</td></tr>
+      <tr><td>POST /hcaptcha</td><td>hcaptcha</td><td>{token}</td></tr>
+      <tr><td>POST /recaptcha-v2</td><td>recaptcha-v2</td><td>{token}</td></tr>
+      <tr><td>POST /recaptcha-v3</td><td>recaptcha-v3</td><td>{token, score}</td></tr>
+      <tr><td>POST /aws-waf</td><td>aws-waf</td><td>{aws_waf_token, cookies}</td></tr>
+    </table>
 
-      <h2 id="jobs">Job Queue</h2>
-      <div class="endpoint"><span class="method get">GET</span>/job/:id</div>
-      <div class="endpoint"><span class="method get">GET</span>/jobs</div>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Poll pattern
+    <h2 id="jobs">Job Queue</h2>
+    <div class="endpoint"><span class="method get">GET</span>/job/:id</div>
+    <div class="endpoint"><span class="method get">GET</span>/jobs</div>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Poll pattern
 POST /bypass { "async": true } → { "jobId": "uuid", "status": "pending" }
 GET /job/uuid → { "status": "done"|"failed"|"pending", "result": {...}, "error": null }</pre>
 
-      <h2 id="sessions">Sessions</h2>
-      <div class="endpoint"><span class="method post">POST</span>/session/get</div>
-      <div class="endpoint"><span class="method post">POST</span>/session/post</div>
-      <div class="endpoint"><span class="method post">POST</span>/session/destroy</div>
-      <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Persistent named session — cookies survive across requests
+    <h2 id="sessions">Sessions</h2>
+    <div class="endpoint"><span class="method post">POST</span>/session/get</div>
+    <div class="endpoint"><span class="method post">POST</span>/session/post</div>
+    <div class="endpoint"><span class="method post">POST</span>/session/destroy</div>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Persistent named session — cookies survive across requests
 POST /session/get  { "url": "...", "sessionId": "my-session" }
 POST /session/post { "url": "...", "sessionId": "my-session", "fields": { "#username": "user" } }
 POST /session/destroy { "sessionId": "my-session" }  // or "all"</pre>
 
-      <h2 id="proxy">Proxy Endpoints</h2>
-      <div class="endpoint"><span class="method get">GET</span>/get-proxy?country=HK</div>
-      <div class="endpoint"><span class="method post">POST</span>/proxies/ban</div>
-      <div class="endpoint"><span class="method post">POST</span>/proxies/refresh</div>
-      <p>Proxy pool auto-refreshes every 5 minutes from ProxyScrape v4 (HK, KH, TW, KR, VN — elite anonymity, >80%
-        uptime, &lt;2000ms). New proxies start at score 3/5; banned after 3 failures.</p>
+    <h2 id="proxy">Proxy Endpoints</h2>
+    <div class="endpoint"><span class="method get">GET</span>/get-proxy?country=HK</div>
+    <div class="endpoint"><span class="method post">POST</span>/proxies/ban</div>
+    <div class="endpoint"><span class="method post">POST</span>/proxies/refresh</div>
+    <p>Proxy pool auto-refreshes every 5 minutes from ProxyScrape v4 (HK, KH, TW, KR, VN — elite anonymity, >80% uptime, &lt;2000ms). New proxies start at score 3/5; banned after 3 failures.</p>
 
-      <h2 id="env">Environment Variables</h2>
-      <table>
-        <tr>
-          <th>Variable</th>
-          <th>Default</th>
-          <th>Description</th>
-        </tr>
-        <tr>
-          <td>PORT</td>
-          <td>3000</td>
-          <td>HTTP server port</td>
-        </tr>
-        <tr>
-          <td>TIMEOUT_MS</td>
-          <td>120000</td>
-          <td>Global solver timeout per request (ms)</td>
-        </tr>
-        <tr>
-          <td>BROWSER_LIMIT</td>
-          <td>20</td>
-          <td>Max concurrent browser contexts</td>
-        </tr>
-        <tr>
-          <td>CONTEXT_POOL_SIZE</td>
-          <td>1</td>
-          <td>Pre-warmed context pool size (need 2GB+ RAM to increase)</td>
-        </tr>
-        <tr>
-          <td>BATCH_LIMIT</td>
-          <td>10</td>
-          <td>Max requests per /bypass/batch</td>
-        </tr>
-        <tr>
-          <td>JOB_TTL_MS</td>
-          <td>300000</td>
-          <td>Job expiry time (ms)</td>
-        </tr>
-        <tr>
-          <td>MEMORY_LIMIT_MB</td>
-          <td>1024</td>
-          <td>Heap threshold for memory manager (MB)</td>
-        </tr>
-        <tr>
-          <td>GEMINI_KEYS</td>
-          <td></td>
-          <td>Comma-separated Gemini API keys for hCaptcha fallback</td>
-        </tr>
-        <tr>
-          <td>HEADED</td>
-          <td>false</td>
-          <td>Run browser in headed (visible) mode</td>
-        </tr>
-        <tr>
-          <td>TRANSFORMERS_CACHE</td>
-          <td>/tmp/whisper-cache</td>
-          <td>Xenova/Transformers model cache path</td>
-        </tr>
-      </table>
+    <h2 id="env">Environment Variables</h2>
+    <table>
+      <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+      <tr><td>PORT</td><td>3000</td><td>HTTP server port</td></tr>
+      <tr><td>TIMEOUT_MS</td><td>120000</td><td>Global solver timeout per request (ms)</td></tr>
+      <tr><td>BROWSER_LIMIT</td><td>20</td><td>Max concurrent browser contexts</td></tr>
+      <tr><td>CONTEXT_POOL_SIZE</td><td>1</td><td>Pre-warmed context pool size (need 2GB+ RAM to increase)</td></tr>
+      <tr><td>BATCH_LIMIT</td><td>10</td><td>Max requests per /bypass/batch</td></tr>
+      <tr><td>JOB_TTL_MS</td><td>300000</td><td>Job expiry time (ms)</td></tr>
+      <tr><td>MEMORY_LIMIT_MB</td><td>1024</td><td>Heap threshold for memory manager (MB)</td></tr>
+      <tr><td>GEMINI_KEYS</td><td></td><td>Comma-separated Gemini API keys for hCaptcha fallback</td></tr>
+      <tr><td>HEADED</td><td>false</td><td>Run browser in headed (visible) mode</td></tr>
+      <tr><td>TRANSFORMERS_CACHE</td><td>/tmp/whisper-cache</td><td>Xenova/Transformers model cache path</td></tr>
+    </table>
 
-      <h2 id="errors">Error Codes</h2>
-      <table>
-        <tr>
-          <th>Code</th>
-          <th>HTTP</th>
-          <th>When</th>
-        </tr>
-        <tr>
-          <td>NOT_READY</td>
-          <td>503</td>
-          <td>Browser not initialized yet</td>
-        </tr>
-        <tr>
-          <td>TOO_MANY</td>
-          <td>429</td>
-          <td>At BROWSER_LIMIT capacity</td>
-        </tr>
-        <tr>
-          <td>BAD_REQUEST</td>
-          <td>400</td>
-          <td>Invalid URL, missing required field, invalid mode</td>
-        </tr>
-        <tr>
-          <td>FAILED</td>
-          <td>500</td>
-          <td>Solver threw — challenge not solved, timeout, context crash</td>
-        </tr>
-        <tr>
-          <td>NOT_FOUND</td>
-          <td>404</td>
-          <td>Job ID not found, unknown route</td>
-        </tr>
-        <tr>
-          <td>NO_PROXY</td>
-          <td>503</td>
-          <td>Proxy pool empty or exhausted</td>
-        </tr>
-      </table>
+    <h2 id="errors">Error Codes</h2>
+    <table>
+      <tr><th>Code</th><th>HTTP</th><th>When</th></tr>
+      <tr><td>NOT_READY</td><td>503</td><td>Browser not initialized yet</td></tr>
+      <tr><td>TOO_MANY</td><td>429</td><td>At BROWSER_LIMIT capacity</td></tr>
+      <tr><td>BAD_REQUEST</td><td>400</td><td>Invalid URL, missing required field, invalid mode</td></tr>
+      <tr><td>FAILED</td><td>500</td><td>Solver threw — challenge not solved, timeout, context crash</td></tr>
+      <tr><td>NOT_FOUND</td><td>404</td><td>Job ID not found, unknown route</td></tr>
+      <tr><td>NO_PROXY</td><td>503</td><td>Proxy pool empty or exhausted</td></tr>
+    </table>
 
-      <h2 id="solver-table">Solver Comparison</h2>
-      <table>
-        <tr>
-          <th>Mode</th>
-          <th>Speed</th>
-          <th>What it solves</th>
-          <th>Use when</th>
-        </tr>
-        <tr>
-          <td>cloudflare</td>
-          <td>Medium</td>
-          <td>Full CF bypass</td>
-          <td>Need full cookie set + source</td>
-        </tr>
-        <tr>
-          <td>cf-cfbypass</td>
-          <td>Fast</td>
-          <td>CF cookie only</td>
-          <td>Just need the cfbypass cookie</td>
-        </tr>
-        <tr>
-          <td>turnstile-min</td>
-          <td>Fastest</td>
-          <td>Turnstile token</td>
-          <td>You have the siteKey, no live page needed</td>
-        </tr>
-        <tr>
-          <td>turnstile-max</td>
-          <td>Medium</td>
-          <td>Turnstile from live page</td>
-          <td>Widget embedded in real CF page</td>
-        </tr>
-        <tr>
-          <td>waf-session</td>
-          <td>Medium</td>
-          <td>CF cookies + headers</td>
-          <td>Need to replay via CycleTLS/curl</td>
-        </tr>
-        <tr>
-          <td>source</td>
-          <td>Medium</td>
-          <td>Page HTML after CF clears</td>
-          <td>Scraping CF-protected content</td>
-        </tr>
-        <tr>
-          <td>hcaptcha</td>
-          <td>Slow</td>
-          <td>hCaptcha token</td>
-          <td>Site uses hCaptcha (not CF)</td>
-        </tr>
-        <tr>
-          <td>recaptcha-v2</td>
-          <td>Slow</td>
-          <td>reCAPTCHA v2 token</td>
-          <td>Audio challenge approach</td>
-        </tr>
-        <tr>
-          <td>recaptcha-v3</td>
-          <td>Medium</td>
-          <td>reCAPTCHA v3 token + score</td>
-          <td>Behaviour-based, no visual challenge</td>
-        </tr>
-        <tr>
-          <td>aws-waf</td>
-          <td>Medium</td>
-          <td>AWS WAF token cookie</td>
-          <td>Amazon/AWS-protected endpoints</td>
-        </tr>
-      </table>
-    </div>
+    <h2 id="solver-table">Solver Comparison</h2>
+    <table>
+      <tr><th>Mode</th><th>Speed</th><th>What it solves</th><th>Use when</th></tr>
+      <tr><td>cloudflare</td><td>Medium</td><td>Full CF bypass</td><td>Need full cookie set + source</td></tr>
+      <tr><td>cf-clearance</td><td>Fast</td><td>CF cookie only</td><td>Just need the clearance cookie</td></tr>
+      <tr><td>turnstile-min</td><td>Fastest</td><td>Turnstile token</td><td>You have the siteKey, no live page needed</td></tr>
+      <tr><td>turnstile-max</td><td>Medium</td><td>Turnstile from live page</td><td>Widget embedded in real CF page</td></tr>
+      <tr><td>waf-session</td><td>Medium</td><td>CF cookies + headers</td><td>Need to replay via CycleTLS/curl</td></tr>
+      <tr><td>source</td><td>Medium</td><td>Page HTML after CF clears</td><td>Scraping CF-protected content</td></tr>
+      <tr><td>hcaptcha</td><td>Slow</td><td>hCaptcha token</td><td>Site uses hCaptcha (not CF)</td></tr>
+      <tr><td>recaptcha-v2</td><td>Slow</td><td>reCAPTCHA v2 token</td><td>Audio challenge approach</td></tr>
+      <tr><td>recaptcha-v3</td><td>Medium</td><td>reCAPTCHA v3 token + score</td><td>Behaviour-based, no visual challenge</td></tr>
+      <tr><td>aws-waf</td><td>Medium</td><td>AWS WAF token cookie</td><td>Amazon/AWS-protected endpoints</td></tr>
+    </table>
   </div>
+</div>
 
-  <script>
-    function copyPre(btn) {
-      const pre = btn.parentElement
-      const text = pre.textContent.replace('Copy', '').trim()
-      navigator.clipboard.writeText(text)
-      btn.textContent = 'Copied!'
-      setTimeout(() => btn.textContent = 'Copy', 1500)
-    }
-  </script>
+<script>
+function copyPre(btn) {
+  const pre = btn.parentElement
+  const text = pre.textContent.replace('Copy', '').trim()
+  navigator.clipboard.writeText(text)
+  btn.textContent = 'Copied!'
+  setTimeout(() => btn.textContent = 'Copy', 1500)
+}
+</script>
 </body>
-
 </html>

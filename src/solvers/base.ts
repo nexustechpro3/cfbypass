@@ -3,7 +3,7 @@ import { borrow, returnCtx } from '../pool/contextPool'
 import type { ProxyConfig, CookieParam } from '../types'
 import {
   CF_POLL_INTERVAL_MS,
-  cfbypass_POLL_INTERVAL_MS,
+  CLEARANCE_POLL_INTERVAL_MS,
   TOKEN_POLL_INTERVAL_MS,
 } from '../constants'
 
@@ -40,18 +40,18 @@ export async function waitForCF(page: Page, ms = 30000): Promise<boolean> {
   return false
 }
 
-/** Polls context cookies until cf_cfbypass appears — definitive CF-solved signal. */
-export async function waitForcfbypass(page: Page, ms = 90000): Promise<string | null> {
+/** Polls context cookies until cf_clearance appears — definitive CF-solved signal. */
+export async function waitForClearance(page: Page, ms = 90000): Promise<string | null> {
   const deadline = Date.now() + ms
 
   while (Date.now() < deadline) {
     try {
       const cookies = await page.context().cookies()
-      const c = cookies.find(ck => ck.name === 'cf_cfbypass')
+      const c = cookies.find(ck => ck.name === 'cf_clearance')
       if (c?.value) return c.value
     } catch (_) { /* ignore */ }
 
-    await sleep(cfbypass_POLL_INTERVAL_MS)
+    await sleep(CLEARANCE_POLL_INTERVAL_MS)
   }
   return null
 }

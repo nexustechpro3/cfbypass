@@ -1,653 +1,370 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexusCfBypass — Dashboard</title>
-  <style>
-    :root {
-      --bg: #0d0f14;
-      --surface: #161920;
-      --border: #252830;
-      --text: #e2e4ea;
-      --muted: #6b7280;
-      --accent: #6366f1;
-      --green: #22c55e;
-      --amber: #f59e0b;
-      --red: #ef4444;
-      --blue: #3b82f6;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusClearance — Dashboard</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --border: #252830;
+    --text: #e2e4ea;
+    --muted: #6b7280;
+    --accent: #6366f1;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--amber); transition: background 0.3s; }
+  .status-dot.ready { background: var(--green); }
+  .status-dot.busy { background: var(--amber); }
+  .status-dot.error { background: var(--red); }
+  .uptime { font-size: 12px; color: var(--muted); }
+  .version { font-size: 12px; color: var(--muted); background: var(--border); padding: 2px 8px; border-radius: 4px; }
+  .nav { display: flex; gap: 16px; font-size: 13px; }
+  .nav a { color: var(--muted); padding: 4px 8px; border-radius: 4px; }
+  .nav a.active, .nav a:hover { color: var(--text); background: var(--border); }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
-      font-size: 14px;
-      min-height: 100vh;
-    }
+  .main { padding: 24px; display: grid; gap: 16px; max-width: 1400px; margin: 0 auto; }
 
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
+  .cards-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .card-value.green { color: var(--green); }
+  .card-value.amber { color: var(--amber); }
+  .card-value.red { color: var(--red); }
 
-    a:hover {
-      text-decoration: underline;
-    }
+  .pool-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mini-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s; }
+  .mini-bar-fill.warn { background: var(--amber); }
+  .mini-bar-fill.danger { background: var(--red); }
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-    }
+  .proxy-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .proxy-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .proxy-counts { display: flex; gap: 24px; }
+  .proxy-count { text-align: center; }
+  .proxy-count-num { font-size: 22px; font-weight: 700; }
+  .proxy-count-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .country-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .country-badge { background: var(--border); padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; gap: 6px; align-items: center; }
+  .country-badge .cnt { color: var(--accent); font-weight: 600; }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  canvas { width: 100% !important; }
 
-    .logo {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: -0.5px;
-    }
+  .traffic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .traffic-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .traffic-feed { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+  .traffic-item { padding: 4px 8px; border-radius: 4px; display: flex; gap: 8px; align-items: center; }
+  .traffic-item.received { color: var(--muted); }
+  .traffic-item.done { color: var(--green); }
+  .traffic-item.failed { color: var(--red); }
+  .traffic-item.queued { color: var(--blue); }
+  .traffic-ts { color: var(--muted); min-width: 80px; }
+  .traffic-mode { color: var(--accent); min-width: 90px; }
 
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--amber);
-      transition: background 0.3s;
-    }
-
-    .status-dot.ready {
-      background: var(--green);
-    }
-
-    .status-dot.busy {
-      background: var(--amber);
-    }
-
-    .status-dot.error {
-      background: var(--red);
-    }
-
-    .uptime {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .version {
-      font-size: 12px;
-      color: var(--muted);
-      background: var(--border);
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-
-    .nav {
-      display: flex;
-      gap: 16px;
-      font-size: 13px;
-    }
-
-    .nav a {
-      color: var(--muted);
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-
-    .nav a.active,
-    .nav a:hover {
-      color: var(--text);
-      background: var(--border);
-    }
-
-    .main {
-      padding: 24px;
-      display: grid;
-      gap: 16px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .cards-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-    }
-
-    .card-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-
-    .card-value {
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .card-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    .card-value.green {
-      color: var(--green);
-    }
-
-    .card-value.amber {
-      color: var(--amber);
-    }
-
-    .card-value.red {
-      color: var(--red);
-    }
-
-    .pool-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .mini-bar {
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      margin-top: 10px;
-      overflow: hidden;
-    }
-
-    .mini-bar-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 3px;
-      transition: width 0.5s;
-    }
-
-    .mini-bar-fill.warn {
-      background: var(--amber);
-    }
-
-    .mini-bar-fill.danger {
-      background: var(--red);
-    }
-
-    .proxy-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-    }
-
-    .proxy-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .proxy-counts {
-      display: flex;
-      gap: 24px;
-    }
-
-    .proxy-count {
-      text-align: center;
-    }
-
-    .proxy-count-num {
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    .proxy-count-label {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
-    .country-grid {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .country-badge {
-      background: var(--border);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .country-badge .cnt {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    .charts-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .chart-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-    }
-
-    .chart-title {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    canvas {
-      width: 100% !important;
-    }
-
-    .traffic-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-    }
-
-    .traffic-title {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .traffic-feed {
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .traffic-item {
-      padding: 4px 8px;
-      border-radius: 4px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .traffic-item.received {
-      color: var(--muted);
-    }
-
-    .traffic-item.done {
-      color: var(--green);
-    }
-
-    .traffic-item.failed {
-      color: var(--red);
-    }
-
-    .traffic-item.queued {
-      color: var(--blue);
-    }
-
-    .traffic-ts {
-      color: var(--muted);
-      min-width: 80px;
-    }
-
-    .traffic-mode {
-      color: var(--accent);
-      min-width: 90px;
-    }
-
-    @media (max-width: 900px) {
-      .cards-row {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .charts-row {
-        grid-template-columns: 1fr;
-      }
-
-      .pool-row {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  @media (max-width: 900px) {
+    .cards-row { grid-template-columns: 1fr 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+    .pool-row { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
-
 <body>
-  <div class="header">
-    <div class="header-left">
-      <span class="logo">Nexuscfbypass</span>
-      <span class="status-dot" id="statusDot"></span>
-      <span class="uptime" id="uptime">uptime: --</span>
-      <span class="version" id="version">v1.0.0</span>
-    </div>
-    <nav class="nav">
-      <a href="/" class="active">Dashboard</a>
-      <a href="/test">Test</a>
-      <a href="/usage">Usage</a>
-    </nav>
+<div class="header">
+  <div class="header-left">
+    <span class="logo">NexusClearance</span>
+    <span class="status-dot" id="statusDot"></span>
+    <span class="uptime" id="uptime">uptime: --</span>
+    <span class="version" id="version">v1.0.0</span>
   </div>
+  <nav class="nav">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/test">Test</a>
+    <a href="/usage">Usage</a>
+  </nav>
+</div>
 
-  <div class="main">
-    <!-- Stats row -->
-    <div class="cards-row">
-      <div class="card">
-        <div class="card-label">Total Requests</div>
-        <div class="card-value" id="statTotal">0</div>
-        <div class="card-sub">lifetime</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Success Rate</div>
-        <div class="card-value" id="statRate">—</div>
-        <div class="card-sub" id="statRateSub">success/total</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Avg Solve Time</div>
-        <div class="card-value" id="statAvgMs">—</div>
-        <div class="card-sub">milliseconds</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Active Queue</div>
-        <div class="card-value" id="statQueue">0</div>
-        <div class="card-sub">concurrent</div>
-      </div>
+<div class="main">
+  <!-- Stats row -->
+  <div class="cards-row">
+    <div class="card">
+      <div class="card-label">Total Requests</div>
+      <div class="card-value" id="statTotal">0</div>
+      <div class="card-sub">lifetime</div>
     </div>
-
-    <!-- Pool & Memory -->
-    <div class="pool-row">
-      <div class="card">
-        <div class="card-label">Browser Pool</div>
-        <div id="poolText" style="font-size:20px;font-weight:700;">0 / 20</div>
-        <div class="mini-bar">
-          <div class="mini-bar-fill" id="poolBar" style="width:0%"></div>
-        </div>
-        <div class="card-sub" id="poolSub">0 pooled contexts</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Memory Usage</div>
-        <div id="memText" style="font-size:20px;font-weight:700;">0 MB</div>
-        <div class="mini-bar">
-          <div class="mini-bar-fill" id="memBar" style="width:0%"></div>
-        </div>
-        <div class="card-sub" id="memSub">limit: 1024 MB</div>
-      </div>
+    <div class="card">
+      <div class="card-label">Success Rate</div>
+      <div class="card-value" id="statRate">—</div>
+      <div class="card-sub" id="statRateSub">success/total</div>
     </div>
-
-    <!-- Proxy pool -->
-    <div class="proxy-card">
-      <div class="proxy-header">
-        <div>
-          <div class="card-label">Proxy Pool</div>
-          <div class="proxy-counts" id="proxyCounts">
-            <div class="proxy-count">
-              <div class="proxy-count-num" id="proxyTotal">0</div>
-              <div class="proxy-count-label">Total</div>
-            </div>
-            <div class="proxy-count">
-              <div class="proxy-count-num" style="color:var(--green)" id="proxyActive">0</div>
-              <div class="proxy-count-label">Active</div>
-            </div>
-            <div class="proxy-count">
-              <div class="proxy-count-num" style="color:var(--red)" id="proxyBanned">0</div>
-              <div class="proxy-count-label">Banned</div>
-            </div>
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div class="card-label">Last Refresh</div>
-          <div id="proxyRefresh" style="font-size:12px">—</div>
-        </div>
-      </div>
-      <div class="country-grid" id="countryGrid"></div>
+    <div class="card">
+      <div class="card-label">Avg Solve Time</div>
+      <div class="card-value" id="statAvgMs">—</div>
+      <div class="card-sub">milliseconds</div>
     </div>
-
-    <!-- Charts -->
-    <div class="charts-row">
-      <div class="chart-card">
-        <div class="chart-title">Solve Rate</div>
-        <canvas id="rateChart" height="120"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Avg Solve Time (ms)</div>
-        <canvas id="timeChart" height="120"></canvas>
-      </div>
-    </div>
-
-    <!-- Traffic feed -->
-    <div class="traffic-card">
-      <div class="traffic-title">Live Traffic</div>
-      <div class="traffic-feed" id="trafficFeed"></div>
+    <div class="card">
+      <div class="card-label">Active Queue</div>
+      <div class="card-value" id="statQueue">0</div>
+      <div class="card-sub">concurrent</div>
     </div>
   </div>
 
-  <script>
-    const MAX_POINTS = 50
-    const rateData = { success: [], failed: [] }
-    const timeData = []
-    const trafficLog = []
+  <!-- Pool & Memory -->
+  <div class="pool-row">
+    <div class="card">
+      <div class="card-label">Browser Pool</div>
+      <div id="poolText" style="font-size:20px;font-weight:700;">0 / 20</div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="poolBar" style="width:0%"></div></div>
+      <div class="card-sub" id="poolSub">0 pooled contexts</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Memory Usage</div>
+      <div id="memText" style="font-size:20px;font-weight:700;">0 MB</div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="memBar" style="width:0%"></div></div>
+      <div class="card-sub" id="memSub">limit: 1024 MB</div>
+    </div>
+  </div>
 
-    // Canvas chart helper
-    function drawLineChart(canvasId, datasets, opts = {}) {
-      const canvas = document.getElementById(canvasId)
-      if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      const W = canvas.offsetWidth; canvas.width = W
-      const H = canvas.height
-      ctx.clearRect(0, 0, W, H)
-      ctx.fillStyle = '#161920'
-      ctx.fillRect(0, 0, W, H)
+  <!-- Proxy pool -->
+  <div class="proxy-card">
+    <div class="proxy-header">
+      <div>
+        <div class="card-label">Proxy Pool</div>
+        <div class="proxy-counts" id="proxyCounts">
+          <div class="proxy-count"><div class="proxy-count-num" id="proxyTotal">0</div><div class="proxy-count-label">Total</div></div>
+          <div class="proxy-count"><div class="proxy-count-num" style="color:var(--green)" id="proxyActive">0</div><div class="proxy-count-label">Active</div></div>
+          <div class="proxy-count"><div class="proxy-count-num" style="color:var(--red)" id="proxyBanned">0</div><div class="proxy-count-label">Banned</div></div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="card-label">Last Refresh</div>
+        <div id="proxyRefresh" style="font-size:12px">—</div>
+      </div>
+    </div>
+    <div class="country-grid" id="countryGrid"></div>
+  </div>
 
-      const allVals = datasets.flatMap(d => d.data)
-      const max = Math.max(...allVals, opts.min || 1) * 1.1
-      const min = 0
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Solve Rate</div>
+      <canvas id="rateChart" height="120"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Avg Solve Time (ms)</div>
+      <canvas id="timeChart" height="120"></canvas>
+    </div>
+  </div>
 
-      datasets.forEach(ds => {
-        if (!ds.data.length) return
-        ctx.strokeStyle = ds.color
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ds.data.forEach((v, i) => {
-          const x = (i / (MAX_POINTS - 1)) * W
-          const y = H - ((v - min) / (max - min)) * H * 0.85 - H * 0.05
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-        })
-        ctx.stroke()
-      })
+  <!-- Traffic feed -->
+  <div class="traffic-card">
+    <div class="traffic-title">Live Traffic</div>
+    <div class="traffic-feed" id="trafficFeed"></div>
+  </div>
+</div>
 
-      // Grid lines
-      ctx.strokeStyle = '#252830'
-      ctx.lineWidth = 1
-      for (let i = 1; i < 4; i++) {
-        const y = (H / 4) * i
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
-      }
-    }
+<script>
+const MAX_POINTS = 50
+const rateData = { success: [], failed: [] }
+const timeData = []
+const trafficLog = []
 
-    function relativeTime(ts) {
-      if (!ts) return '—'
-      const diff = Math.floor((Date.now() - ts) / 1000)
-      if (diff < 60) return `${diff}s ago`
-      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-      return `${Math.floor(diff / 3600)}h ago`
-    }
+// Canvas chart helper
+function drawLineChart(canvasId, datasets, opts = {}) {
+  const canvas = document.getElementById(canvasId)
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  const W = canvas.offsetWidth; canvas.width = W
+  const H = canvas.height
+  ctx.clearRect(0, 0, W, H)
+  ctx.fillStyle = '#161920'
+  ctx.fillRect(0, 0, W, H)
 
-    function startUptime(startSecs) {
-      let secs = startSecs
-      setInterval(() => {
-        secs++
-        const h = Math.floor(secs / 3600)
-        const m = Math.floor((secs % 3600) / 60)
-        const s = secs % 60
-        document.getElementById('uptime').textContent = `uptime: ${h}h ${m}m ${s}s`
-      }, 1000)
-    }
+  const allVals = datasets.flatMap(d => d.data)
+  const max = Math.max(...allVals, opts.min || 1) * 1.1
+  const min = 0
 
-    function updateStats(data) {
-      const s = data.solveStats || {}
-      const p = data.proxyStats || {}
+  datasets.forEach(ds => {
+    if (!ds.data.length) return
+    ctx.strokeStyle = ds.color
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ds.data.forEach((v, i) => {
+      const x = (i / (MAX_POINTS - 1)) * W
+      const y = H - ((v - min) / (max - min)) * H * 0.85 - H * 0.05
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    })
+    ctx.stroke()
+  })
 
-      document.getElementById('statTotal').textContent = s.total ?? 0
-      document.getElementById('statQueue').textContent = data.queue ?? 0
+  // Grid lines
+  ctx.strokeStyle = '#252830'
+  ctx.lineWidth = 1
+  for (let i = 1; i < 4; i++) {
+    const y = (H / 4) * i
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
+  }
+}
 
-      const rate = s.total > 0 ? Math.round((s.success / s.total) * 100) : null
-      const rateEl = document.getElementById('statRate')
-      if (rate !== null) {
-        rateEl.textContent = rate + '%'
-        rateEl.className = 'card-value ' + (rate >= 90 ? 'green' : rate >= 70 ? 'amber' : 'red')
-      } else {
-        rateEl.textContent = '—'
-        rateEl.className = 'card-value'
-      }
+function relativeTime(ts) {
+  if (!ts) return '—'
+  const diff = Math.floor((Date.now() - ts) / 1000)
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  return `${Math.floor(diff / 3600)}h ago`
+}
 
-      document.getElementById('statAvgMs').textContent = s.avgMs ? s.avgMs + 'ms' : '—'
-      document.getElementById('statRateSub').textContent = `${s.success ?? 0} / ${s.total ?? 0}`
+function startUptime(startSecs) {
+  let secs = startSecs
+  setInterval(() => {
+    secs++
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
+    const s = secs % 60
+    document.getElementById('uptime').textContent = `uptime: ${h}h ${m}m ${s}s`
+  }, 1000)
+}
 
-      // Pool
-      const pool = data.pool || {}
-      const busy = pool.busy || 0
-      const total = pool.total || 20
-      document.getElementById('poolText').textContent = `${busy} / ${total}`
-      document.getElementById('poolSub').textContent = `${pool.pooled || 0} pooled contexts`
-      const poolPct = (busy / total) * 100
-      const poolBar = document.getElementById('poolBar')
-      poolBar.style.width = poolPct + '%'
-      poolBar.className = 'mini-bar-fill' + (poolPct > 90 ? ' danger' : poolPct > 70 ? ' warn' : '')
+function updateStats(data) {
+  const s = data.solveStats || {}
+  const p = data.proxyStats || {}
 
-      // Memory
-      const memMb = data.memMb || 0
-      const memLimit = 1024
-      document.getElementById('memText').textContent = memMb + ' MB'
-      const memPct = (memMb / memLimit) * 100
-      const memBar = document.getElementById('memBar')
-      memBar.style.width = Math.min(100, memPct) + '%'
-      memBar.className = 'mini-bar-fill' + (memPct > 90 ? ' danger' : memPct > 70 ? ' warn' : '')
-      document.getElementById('memSub').textContent = `limit: ${memLimit} MB`
+  document.getElementById('statTotal').textContent = s.total ?? 0
+  document.getElementById('statQueue').textContent = data.queue ?? 0
 
-      // Proxy
-      document.getElementById('proxyTotal').textContent = p.total ?? 0
-      document.getElementById('proxyActive').textContent = p.active ?? 0
-      document.getElementById('proxyBanned').textContent = p.banned ?? 0
-      document.getElementById('proxyRefresh').textContent = relativeTime(p.lastRefresh)
+  const rate = s.total > 0 ? Math.round((s.success / s.total) * 100) : null
+  const rateEl = document.getElementById('statRate')
+  if (rate !== null) {
+    rateEl.textContent = rate + '%'
+    rateEl.className = 'card-value ' + (rate >= 90 ? 'green' : rate >= 70 ? 'amber' : 'red')
+  } else {
+    rateEl.textContent = '—'
+    rateEl.className = 'card-value'
+  }
 
-      // Charts data
-      rateData.success.push(s.success ?? 0)
-      rateData.failed.push(s.failed ?? 0)
-      timeData.push(s.avgMs ?? 0)
-      if (rateData.success.length > MAX_POINTS) { rateData.success.shift(); rateData.failed.shift() }
-      if (timeData.length > MAX_POINTS) timeData.shift()
+  document.getElementById('statAvgMs').textContent = s.avgMs ? s.avgMs + 'ms' : '—'
+  document.getElementById('statRateSub').textContent = `${s.success ?? 0} / ${s.total ?? 0}`
 
-      drawLineChart('rateChart', [
-        { data: rateData.success, color: '#22c55e' },
-        { data: rateData.failed, color: '#ef4444' },
-      ])
-      drawLineChart('timeChart', [
-        { data: timeData, color: '#6366f1' },
-      ])
+  // Pool
+  const pool = data.pool || {}
+  const busy = pool.busy || 0
+  const total = pool.total || 20
+  document.getElementById('poolText').textContent = `${busy} / ${total}`
+  document.getElementById('poolSub').textContent = `${pool.pooled || 0} pooled contexts`
+  const poolPct = (busy / total) * 100
+  const poolBar = document.getElementById('poolBar')
+  poolBar.style.width = poolPct + '%'
+  poolBar.className = 'mini-bar-fill' + (poolPct > 90 ? ' danger' : poolPct > 70 ? ' warn' : '')
 
-      // Status dot
-      const dot = document.getElementById('statusDot')
-      if ((data.queue || 0) >= (total || 20)) dot.className = 'status-dot busy'
-      else dot.className = 'status-dot ready'
-    }
+  // Memory
+  const memMb = data.memMb || 0
+  const memLimit = 1024
+  document.getElementById('memText').textContent = memMb + ' MB'
+  const memPct = (memMb / memLimit) * 100
+  const memBar = document.getElementById('memBar')
+  memBar.style.width = Math.min(100, memPct) + '%'
+  memBar.className = 'mini-bar-fill' + (memPct > 90 ? ' danger' : memPct > 70 ? ' warn' : '')
+  document.getElementById('memSub').textContent = `limit: ${memLimit} MB`
 
-    function updateTraffic(data) {
-      const ts = new Date().toLocaleTimeString()
-      trafficLog.unshift({ ...data, ts })
-      if (trafficLog.length > 20) trafficLog.pop()
-      const feed = document.getElementById('trafficFeed')
-      feed.innerHTML = trafficLog.map(item =>
-        `<div class="traffic-item ${item.status}">
+  // Proxy
+  document.getElementById('proxyTotal').textContent = p.total ?? 0
+  document.getElementById('proxyActive').textContent = p.active ?? 0
+  document.getElementById('proxyBanned').textContent = p.banned ?? 0
+  document.getElementById('proxyRefresh').textContent = relativeTime(p.lastRefresh)
+
+  // Charts data
+  rateData.success.push(s.success ?? 0)
+  rateData.failed.push(s.failed ?? 0)
+  timeData.push(s.avgMs ?? 0)
+  if (rateData.success.length > MAX_POINTS) { rateData.success.shift(); rateData.failed.shift() }
+  if (timeData.length > MAX_POINTS) timeData.shift()
+
+  drawLineChart('rateChart', [
+    { data: rateData.success, color: '#22c55e' },
+    { data: rateData.failed, color: '#ef4444' },
+  ])
+  drawLineChart('timeChart', [
+    { data: timeData, color: '#6366f1' },
+  ])
+
+  // Status dot
+  const dot = document.getElementById('statusDot')
+  if ((data.queue || 0) >= (total || 20)) dot.className = 'status-dot busy'
+  else dot.className = 'status-dot ready'
+}
+
+function updateTraffic(data) {
+  const ts = new Date().toLocaleTimeString()
+  trafficLog.unshift({ ...data, ts })
+  if (trafficLog.length > 20) trafficLog.pop()
+  const feed = document.getElementById('trafficFeed')
+  feed.innerHTML = trafficLog.map(item =>
+    `<div class="traffic-item ${item.status}">
       <span class="traffic-ts">${item.ts}</span>
       <span class="traffic-mode">${item.mode || '—'}</span>
       <span>${item.status?.toUpperCase()} — ${item.url || ''}</span>
     </div>`
-      ).join('')
-    }
+  ).join('')
+}
 
-    function updateProxy(data) {
-      if (!data.countries) return
-      const grid = document.getElementById('countryGrid')
-      grid.innerHTML = Object.entries(data.countries).map(([country, cnt]) =>
-        `<div class="country-badge">${country} <span class="cnt">${cnt}</span></div>`
-      ).join('')
-    }
+function updateProxy(data) {
+  if (!data.countries) return
+  const grid = document.getElementById('countryGrid')
+  grid.innerHTML = Object.entries(data.countries).map(([country, cnt]) =>
+    `<div class="country-badge">${country} <span class="cnt">${cnt}</span></div>`
+  ).join('')
+}
 
-    // SSE connection
-    function connectSSE() {
-      const es = new EventSource('/events')
+// SSE connection
+function connectSSE() {
+  const es = new EventSource('/events')
 
-      es.addEventListener('stats', e => {
-        try { updateStats(JSON.parse(e.data)) } catch (_) { }
-      })
+  es.addEventListener('stats', e => {
+    try { updateStats(JSON.parse(e.data)) } catch(_) {}
+  })
 
-      es.addEventListener('traffic', e => {
-        try { updateTraffic(JSON.parse(e.data)) } catch (_) { }
-      })
+  es.addEventListener('traffic', e => {
+    try { updateTraffic(JSON.parse(e.data)) } catch(_) {}
+  })
 
-      es.addEventListener('proxy', e => {
-        try { updateProxy(JSON.parse(e.data)) } catch (_) { }
-      })
+  es.addEventListener('proxy', e => {
+    try { updateProxy(JSON.parse(e.data)) } catch(_) {}
+  })
 
-      es.onerror = () => {
-        document.getElementById('statusDot').className = 'status-dot error'
-        setTimeout(connectSSE, 3000)
-        es.close()
-      }
-    }
+  es.onerror = () => {
+    document.getElementById('statusDot').className = 'status-dot error'
+    setTimeout(connectSSE, 3000)
+    es.close()
+  }
+}
 
-    // Initial health fetch
-    fetch('/health').then(r => r.json()).then(d => {
-      if (d.data) {
-        startUptime(d.data.uptime || 0)
-        document.getElementById('statusDot').className = 'status-dot ' + (d.data.status === 'ready' ? 'ready' : 'error')
-      }
-    }).catch(() => {
-      document.getElementById('statusDot').className = 'status-dot error'
-    })
+// Initial health fetch
+fetch('/health').then(r => r.json()).then(d => {
+  if (d.data) {
+    startUptime(d.data.uptime || 0)
+    document.getElementById('statusDot').className = 'status-dot ' + (d.data.status === 'ready' ? 'ready' : 'error')
+  }
+}).catch(() => {
+  document.getElementById('statusDot').className = 'status-dot error'
+})
 
-    connectSSE()
-  </script>
+connectSSE()
+</script>
 </body>
-
 </html>

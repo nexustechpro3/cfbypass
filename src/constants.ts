@@ -5,7 +5,7 @@ export const SOLVER_MODES: SolverMode[] = [
   'cloudflare',
   'turnstile-min',
   'turnstile-max',
-  'cf-cfbypass',
+  'cf-clearance',
   'waf-session',
   'source',
   'hcaptcha',
@@ -54,5 +54,5 @@ export const SSE_PING_INTERVAL_MS = 25000
 export const SSE_STATS_INTERVAL_MS = 3000
 export const MAX_WAIT_FOR_MS = 10000
 export const CF_POLL_INTERVAL_MS = 800
-export const cfbypass_POLL_INTERVAL_MS = 1000
+export const CLEARANCE_POLL_INTERVAL_MS = 1000
 export const TOKEN_POLL_INTERVAL_MS = 400

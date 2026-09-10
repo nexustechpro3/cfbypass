@@ -1,5 +1,5 @@
 {
-  "name": "@nexustechpro3/cfbypass",
+  "name": "@nexustechpro/clearance",
   "version": "1.0.0",
   "description": "Production-grade Cloudflare / AWS WAF / CAPTCHA bypass microservice",
   "main": "dist/index.js",
