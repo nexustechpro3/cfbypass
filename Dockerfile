@@ -1,25 +1,15 @@
-# Amendment 12: node:20-bookworm-slim — NOT Alpine (Chromium has glibc deps that break on Alpine)
 FROM node:20-bookworm-slim
 
-# Amendment 13: Keep Patchright Chromium binary in a known, writable path inside the container
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers
-
-# Amendment 6: Xenova/Transformers.js model cache to /tmp (RAM-backed tmpfs on Railway)
 ENV TRANSFORMERS_CACHE=/tmp/whisper-cache
 
-# Node environment
-ENV NODE_ENV=production
+# Remove NODE_ENV=production from here — it causes npm ci to skip devDependencies
 
-# Install all Chromium system dependencies + FFmpeg via apt-get
-# Amendment 8: system FFmpeg — NOT the wasm version from unpkg CDN
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Core build tools
     ca-certificates \
     curl \
     gnupg \
-    # FFmpeg — amendment 8
     ffmpeg \
-    # Chromium system deps (glibc-based, required by Patchright Chromium)
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
@@ -57,32 +47,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy package files first for Docker layer caching
 COPY package*.json ./
 
-# Install all npm dependencies
-RUN npm ci --omit=dev
+RUN npm ci
 
-# Install Patchright Chromium at build time
-# --with-deps skipped here since we installed deps via apt-get above
 RUN npx patchright install chromium
 
-# Copy application source and built output
 COPY . .
 
-# Build TypeScript
 RUN npm run build
 
-# Clean up dev artifacts
 RUN npm prune --production
 
-# Railway / container healthcheck
+# Set NODE_ENV=production AFTER build
+ENV NODE_ENV=production
+
 HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=6 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
 EXPOSE 3000
 
-# Run as non-root user for security
 RUN useradd -r -s /bin/false nexus && \
     chown -R nexus:nexus /app && \
     mkdir -p /tmp/pw-browsers /tmp/whisper-cache && \
