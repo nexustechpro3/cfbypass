@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  nexus-cfbypass:
+    build: .
+    image: nexustechpro3/cfbypass:latest
+    container_name: nexus-cfbypass
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    # Amendment 3: /dev/shm must be large enough for Chromium
+    # Default is 64MB — crashes Chromium. Set to at least 1GB.
+    shm_size: "1gb"
+    # Required for Chromium to sandbox properly
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - TIMEOUT_MS=120000
+      - BROWSER_LIMIT=20
+      # Amendment 11: default 1 — each context is 300–500MB, need 2GB+ to increase
+      - CONTEXT_POOL_SIZE=1
+      - MEMORY_LIMIT_MB=1024
+      - BATCH_LIMIT=10
+      # Uncomment and fill to enable hCaptcha Gemini fallback:
+      # - GEMINI_KEYS=key1,key2,key3
+      - PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers
+      - TRANSFORMERS_CACHE=/tmp/whisper-cache
+    volumes:
+      - /tmp:/tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: nexus-network

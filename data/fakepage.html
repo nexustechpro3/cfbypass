@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>Turnstile</title></head>
+<body>
+  <div class="cf-turnstile" data-sitekey="<site-key>" data-callback="onSuccess"></div>
+  <input type="hidden" name="cf-response" id="cf-response" value="" />
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script>
+    function onSuccess(token) {
+      document.getElementById('cf-response').value = token;
+    }
+  </script>
+</body>
+</html>

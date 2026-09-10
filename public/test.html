@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusCfBypass — Test</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #161920;
+      --border: #252830;
+      --text: #e2e4ea;
+      --muted: #6b7280;
+      --accent: #6366f1;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .nav {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .nav a {
+      color: var(--muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+
+    .nav a.active,
+    .nav a:hover {
+      color: var(--text);
+      background: var(--border);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      height: calc(100vh - 57px);
+    }
+
+    .panel {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .left {
+      border-right: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      margin-top: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    label:first-child {
+      margin-top: 0;
+    }
+
+    input[type=text],
+    input[type=number],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .check-row input {
+      width: auto;
+    }
+
+    .check-row label {
+      margin: 0;
+      text-transform: none;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .section-body {
+      display: none;
+    }
+
+    .section-body.open {
+      display: block;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      background: var(--accent);
+      color: #fff;
+      letter-spacing: 0.3px;
+      transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .action-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .action-rm {
+      background: none;
+      border: none;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .meta-bar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge.success {
+      background: #16423c;
+      color: var(--green);
+    }
+
+    .badge.failed {
+      background: #3b1717;
+      color: var(--red);
+    }
+
+    .meta-item {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .meta-item span {
+      color: var(--text);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      border: none;
+      background: none;
+    }
+
+    .tab.active {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .copy-btn {
+      font-size: 11px;
+      background: var(--border);
+      color: var(--text);
+      border: none;
+      border-radius: 4px;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent);
+    }
+
+    .cookie-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .cookie-table th {
+      background: var(--border);
+      text-align: left;
+      padding: 6px 10px;
+      color: var(--muted);
+    }
+
+    .cookie-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      word-break: break-all;
+    }
+
+    .history {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .hist-chip {
+      background: var(--border);
+      border: none;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .hist-chip:hover {
+      color: var(--text);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width:900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .left {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <span class="logo">Nexuscfbypass</span>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/test" class="active">Test</a>
+      <a href="/usage">Usage</a>
+    </nav>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: Request builder -->
+    <div class="panel left">
+      <label>Mode</label>
+      <select id="mode">
+        <option value="cloudflare">cloudflare</option>
+        <option value="turnstile-min">turnstile-min</option>
+        <option value="turnstile-max">turnstile-max</option>
+        <option value="cf-cfbypass">cf-cfbypass</option>
+        <option value="waf-session">waf-session</option>
+        <option value="source">source</option>
+        <option value="hcaptcha">hcaptcha</option>
+        <option value="recaptcha-v2">recaptcha-v2</option>
+        <option value="recaptcha-v3">recaptcha-v3</option>
+        <option value="aws-waf">aws-waf</option>
+      </select>
+
+      <label>URL</label>
+      <input type="text" id="url" placeholder="https://target.com">
+
+      <div id="siteKeyRow" style="display:none">
+        <label>Site Key</label>
+        <input type="text" id="siteKey" placeholder="0x4AAA...">
+      </div>
+
+      <div id="getPageSourceRow" style="display:none">
+        <div class="check-row">
+          <input type="checkbox" id="getPageSource">
+          <label for="getPageSource">Get Page Source</label>
+        </div>
+      </div>
+
+      <div id="waitForRow" style="display:none">
+        <label>Wait After Solve (ms)</label>
+        <input type="number" id="waitFor" min="0" max="10000" value="0">
+      </div>
+
+      <!-- Proxy section -->
+      <div class="section">
+        <div class="section-title" onclick="toggleSection('proxySection')">Proxy ▾</div>
+        <div class="section-body open" id="proxySection">
+          <div class="check-row">
+            <input type="checkbox" id="useProxy">
+            <label for="useProxy">Use proxy pool</label>
+          </div>
+          <div id="manualProxy" style="margin-top:12px">
+            <div class="row3">
+              <div><label>Host</label><input type="text" id="proxyHost" placeholder="1.2.3.4"></div>
+              <div><label>Port</label><input type="number" id="proxyPort" placeholder="1080"></div>
+              <div><label>Protocol</label>
+                <select id="proxyProtocol">
+                  <option value="socks5">socks5</option>
+                  <option value="http">http</option>
+                  <option value="socks4">socks4</option>
+                  <option value="https">https</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div><label>Username</label><input type="text" id="proxyUser"></div>
+              <div><label>Password</label><input type="text" id="proxyPass"></div>
+            </div>
+            <label>Country</label>
+            <select id="proxyCountry">
+              <option value="">Any</option>
+              <option value="HK">HK</option>
+              <option value="KH">KH</option>
+              <option value="TW">TW</option>
+              <option value="KR">KR</option>
+              <option value="VN">VN</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="section">
+        <div class="section-title" onclick="toggleSection('optSection')">Options ▾</div>
+        <div class="section-body" id="optSection">
+          <div class="check-row">
+            <input type="checkbox" id="asyncMode">
+            <label for="asyncMode">Async mode</label>
+          </div>
+          <div id="webhookRow" style="display:none;margin-top:10px">
+            <label>Webhook URL</label>
+            <input type="text" id="webhookUrl" placeholder="https://myapp.com/hook">
+          </div>
+          <label>Session ID</label>
+          <input type="text" id="sessionId" placeholder="my-session (optional)">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="section">
+        <div class="section-title" onclick="toggleSection('actSection')">Actions Pipeline ▾</div>
+        <div class="section-body" id="actSection">
+          <div class="row">
+            <select id="actionType">
+              <option value="click">click</option>
+              <option value="type">type</option>
+              <option value="scroll">scroll</option>
+              <option value="hover">hover</option>
+              <option value="wait">wait</option>
+              <option value="navigate">navigate</option>
+              <option value="evaluate">evaluate</option>
+              <option value="evaluateAndReturn">evaluateAndReturn</option>
+              <option value="screenshot">screenshot</option>
+              <option value="waitForSelector">waitForSelector</option>
+              <option value="waitForText">waitForText</option>
+              <option value="keypress">keypress</option>
+            </select>
+            <button onclick="addAction()"
+              style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;">+
+              Add</button>
+          </div>
+          <div id="actionList" class="action-list"></div>
+        </div>
+      </div>
+
+      <button class="btn" id="solveBtn" onclick="solve()">Solve</button>
+
+      <!-- History -->
+      <div style="margin-top:20px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+          History</div>
+        <div class="history" id="historyChips"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Response viewer -->
+    <div class="panel right">
+      <div id="metaBar" class="meta-bar" style="display:none">
+        <span class="badge" id="statusBadge">—</span>
+        <span class="meta-item">Time: <span id="metaTime">—</span></span>
+        <span class="meta-item">Mode: <span id="metaMode">—</span></span>
+        <span class="meta-item">Proxy: <span id="metaProxy">—</span></span>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('json')">JSON</button>
+        <button class="tab" onclick="switchTab('cookies')">Cookies</button>
+        <button class="tab" onclick="switchTab('headers')">Headers</button>
+        <button class="tab" onclick="switchTab('source')">Source</button>
+      </div>
+
+      <div class="tab-content active" id="tab-json">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="copy-btn" onclick="copyJson()">Copy JSON</button>
+        </div>
+        <pre id="jsonOut">// Response will appear here</pre>
+      </div>
+
+      <div class="tab-content" id="tab-cookies">
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
+          <button class="copy-btn" onclick="copyCookies('json')">Copy JSON</button>
+          <button class="copy-btn" onclick="copyCookies('netscape')">Copy Netscape</button>
+        </div>
+        <table class="cookie-table" id="cookieTable">
+          <tr>
+            <th>Name</th>
+            <th>Value</th>
+            <th>Domain</th>
+            <th>Expires</th>
+          </tr>
+        </table>
+      </div>
+
+      <div class="tab-content" id="tab-headers">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="copy-btn" onclick="copyCurlHeaders()">Copy as cURL</button>
+        </div>
+        <table class="cookie-table" id="headersTable">
+          <tr>
+            <th>Header</th>
+            <th>Value</th>
+          </tr>
+        </table>
+      </div>
+
+      <div class="tab-content" id="tab-source">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="copy-btn" onclick="copySource()">Copy</button>
+        </div>
+        <pre id="sourceOut">// Page source will appear here</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let lastResponse = null
+    let actions = []
+    let history = []
+
+    const modeFields = {
+      'turnstile-min': ['siteKeyRow'],
+      'cloudflare': ['getPageSourceRow', 'waitForRow'],
+      'turnstile-max': ['waitForRow'],
+    }
+
+    document.getElementById('mode').addEventListener('change', function () {
+      const m = this.value
+      document.getElementById('siteKeyRow').style.display = 'none'
+      document.getElementById('getPageSourceRow').style.display = 'none'
+      document.getElementById('waitForRow').style.display = 'none'
+      if (m === 'turnstile-min') document.getElementById('siteKeyRow').style.display = 'block'
+      if (m === 'cloudflare') {
+        document.getElementById('getPageSourceRow').style.display = 'block'
+        document.getElementById('waitForRow').style.display = 'block'
+      }
+    })
+
+    document.getElementById('asyncMode').addEventListener('change', function () {
+      document.getElementById('webhookRow').style.display = this.checked ? 'block' : 'none'
+    })
+
+    function toggleSection(id) {
+      const el = document.getElementById(id)
+      el.classList.toggle('open')
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'))
+      event.target.classList.add('active')
+      document.getElementById('tab-' + name).classList.add('active')
+    }
+
+    function addAction() {
+      const type = document.getElementById('actionType').value
+      const val = prompt(`Action: ${type}\nEnter value (selector/url/script/key/ms):`) ?? ''
+      actions.push({ type, _val: val })
+      renderActions()
+    }
+
+    function renderActions() {
+      const list = document.getElementById('actionList')
+      list.innerHTML = actions.map((a, i) =>
+        `<div class="action-item">
+      <span>${a.type} — ${a._val || ''}</span>
+      <button class="action-rm" onclick="removeAction(${i})">×</button>
+    </div>`
+      ).join('')
+    }
+
+    function removeAction(i) { actions.splice(i, 1); renderActions() }
+
+    function buildRequest() {
+      const req = {
+        url: document.getElementById('url').value,
+        mode: document.getElementById('mode').value,
+      }
+
+      const sk = document.getElementById('siteKey').value
+      if (sk) req.siteKey = sk
+
+      const gps = document.getElementById('getPageSource').checked
+      if (gps) req.getPageSource = true
+
+      const wf = parseInt(document.getElementById('waitFor').value)
+      if (wf > 0) req.waitFor = wf
+
+      const useProxy = document.getElementById('useProxy').checked
+      if (useProxy) req.useProxy = true
+
+      const ph = document.getElementById('proxyHost').value
+      if (ph) {
+        req.proxy = {
+          host: ph,
+          port: parseInt(document.getElementById('proxyPort').value),
+          protocol: document.getElementById('proxyProtocol').value,
+        }
+        const pu = document.getElementById('proxyUser').value
+        const pp = document.getElementById('proxyPass').value
+        if (pu) req.proxy.username = pu
+        if (pp) req.proxy.password = pp
+      }
+
+      const country = document.getElementById('proxyCountry').value
+      if (country) req.country = country
+
+      const sid = document.getElementById('sessionId').value
+      if (sid) req.sessionId = sid
+
+      const isAsync = document.getElementById('asyncMode').checked
+      if (isAsync) req.async = true
+
+      const wh = document.getElementById('webhookUrl').value
+      if (wh) req.webhook = { url: wh }
+
+      // Build actions
+      if (actions.length) {
+        req.actions = actions.map(a => {
+          const act = { type: a.type }
+          if (['click', 'hover', 'select', 'waitForSelector'].includes(a.type)) act.selector = a._val
+          else if (a.type === 'type') { const [sel, ...rest] = a._val.split('|'); act.selector = sel; act.value = rest.join('|') }
+          else if (a.type === 'navigate') act.url = a._val
+          else if (a.type === 'wait') act.ms = parseInt(a._val) || 1000
+          else if (a.type === 'keypress') act.key = a._val
+          else if (a.type === 'evaluate' || a.type === 'evaluateAndReturn') act.script = a._val
+          else if (a.type === 'waitForText') act.text = a._val
+          else if (a.type === 'screenshot') act.name = a._val || 'screenshot'
+          return act
+        })
+      }
+
+      return req
+    }
+
+    async function solve() {
+      const btn = document.getElementById('solveBtn')
+      btn.disabled = true
+      btn.innerHTML = '<span class="spinner"></span> Solving...'
+
+      const req = buildRequest()
+
+      // Add to history
+      history.unshift({ req, res: null })
+      if (history.length > 10) history.pop()
+      renderHistory()
+
+      try {
+        const res = await fetch('/bypass', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(req),
+        })
+        const data = await res.json()
+        lastResponse = data
+        history[0].res = data
+        renderHistory()
+        showResponse(data, req.mode)
+      } catch (err) {
+        showError(err.message)
+      } finally {
+        btn.disabled = false
+        btn.textContent = 'Solve'
+      }
+    }
+
+    function showResponse(data, mode) {
+      document.getElementById('metaBar').style.display = 'flex'
+      const badge = document.getElementById('statusBadge')
+      badge.textContent = data.success ? 'SUCCESS' : 'FAILED'
+      badge.className = 'badge ' + (data.success ? 'success' : 'failed')
+
+      const d = data.data || {}
+      document.getElementById('metaTime').textContent = d.solveMs ? d.solveMs + 'ms' : '—'
+      document.getElementById('metaMode').textContent = mode || '—'
+      document.getElementById('metaProxy').textContent = d.proxy || 'none'
+
+      document.getElementById('jsonOut').textContent = JSON.stringify(data, null, 2)
+
+      // Cookies
+      const cookies = d.cookies || []
+      const ct = document.getElementById('cookieTable')
+      ct.innerHTML = '<tr><th>Name</th><th>Value</th><th>Domain</th><th>Expires</th></tr>'
+      cookies.forEach(c => {
+        const tr = ct.insertRow()
+        tr.insertCell().textContent = c.name
+        tr.insertCell().textContent = c.value?.substring(0, 60) + (c.value?.length > 60 ? '…' : '')
+        tr.insertCell().textContent = c.domain || ''
+        tr.insertCell().textContent = c.expires > 0 ? new Date(c.expires * 1000).toLocaleDateString() : 'session'
+      })
+
+      // Headers (waf-session)
+      const headers = d.headers || {}
+      const ht = document.getElementById('headersTable')
+      ht.innerHTML = '<tr><th>Header</th><th>Value</th></tr>'
+      Object.entries(headers).forEach(([k, v]) => {
+        const tr = ht.insertRow()
+        tr.insertCell().textContent = k
+        tr.insertCell().textContent = v
+      })
+
+      // Source
+      document.getElementById('sourceOut').textContent = d.source || '(no source in response)'
+    }
+
+    function showError(msg) {
+      document.getElementById('metaBar').style.display = 'flex'
+      document.getElementById('statusBadge').textContent = 'ERROR'
+      document.getElementById('statusBadge').className = 'badge failed'
+      document.getElementById('jsonOut').textContent = JSON.stringify({ error: msg }, null, 2)
+    }
+
+    function renderHistory() {
+      const el = document.getElementById('historyChips')
+      el.innerHTML = history.map((h, i) =>
+        `<button class="hist-chip" onclick="loadHistory(${i})">${h.req.mode} — ${(h.req.url || '').substring(0, 30)}</button>`
+      ).join('')
+    }
+
+    function loadHistory(i) {
+      const h = history[i]
+      document.getElementById('url').value = h.req.url || ''
+      document.getElementById('mode').value = h.req.mode || 'cloudflare'
+      document.getElementById('mode').dispatchEvent(new Event('change'))
+      if (h.res) showResponse(h.res, h.req.mode)
+    }
+
+    function copyJson() {
+      navigator.clipboard.writeText(document.getElementById('jsonOut').textContent)
+    }
+
+    function copyCookies(fmt) {
+      if (!lastResponse?.data?.cookies) return
+      const cookies = lastResponse.data.cookies
+      if (fmt === 'json') {
+        navigator.clipboard.writeText(JSON.stringify(cookies, null, 2))
+      } else {
+        const netscape = cookies.map(c =>
+          `${c.domain || ''}\t${c.httpOnly ? 'TRUE' : 'FALSE'}\t${c.path || '/'}\t${c.secure ? 'TRUE' : 'FALSE'}\t${c.expires || 0}\t${c.name}\t${c.value}`
+        ).join('\n')
+        navigator.clipboard.writeText(netscape)
+      }
+    }
+
+    function copyCurlHeaders() {
+      if (!lastResponse?.data?.headers) return
+      const flags = Object.entries(lastResponse.data.headers)
+        .map(([k, v]) => `-H "${k}: ${v}"`)
+        .join(' \\\n  ')
+      navigator.clipboard.writeText(flags)
+    }
+
+    function copySource() {
+      navigator.clipboard.writeText(document.getElementById('sourceOut').textContent)
+    }
+  </script>
+</body>
+
+</html>
