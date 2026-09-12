@@ -42,7 +42,8 @@ const IS_LINUX = process.platform === 'linux'
 
 const LAUNCH_OPTIONS = IS_LINUX
   ? {
-    headless: process.env.HEADED !== 'true',
+    channel: 'chrome' as const,          // ADD — use real Chrome, not headless-shell
+    headless: false,                      // CHANGE — always false, Xvfb handles display
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [

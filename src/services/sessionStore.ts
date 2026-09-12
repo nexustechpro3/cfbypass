@@ -62,7 +62,8 @@ export async function getOrCreate(
 
   const launchOptions = IS_LINUX
     ? {
-      headless: process.env.HEADED !== 'true',
+      channel: 'chrome' as const,
+      headless: false,
       viewport: null as null,
       permissions: PERMISSIONS,
       args: [
