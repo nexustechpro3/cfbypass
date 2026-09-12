@@ -1,9 +1,9 @@
 FROM node:20-bookworm-slim
 
-# Patchright Chromium binary path — writable inside container
-ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers
+# Patchright Chromium binary path — must be a real layer path, NOT /tmp (tmpfs is wiped at runtime)
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.pw-browsers
 
-# Xenova/Transformers.js model cache — /tmp is RAM-backed tmpfs on Railway
+# Xenova/Transformers.js model cache — written at runtime, /tmp is fine here
 ENV TRANSFORMERS_CACHE=/tmp/whisper-cache
 
 # Xvfb virtual display — Chrome runs headed against this, CF cannot detect headless
@@ -15,11 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     gnupg \
-    # System FFmpeg for reCAPTCHA audio processing (not wasm/unpkg)
     ffmpeg \
-    # Virtual display — makes Chrome think it has a real screen
     xvfb \
-    # Chromium glibc system dependencies
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
@@ -56,13 +53,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy package files first — Docker layer cache: npm install only reruns when package.json changes
+# Copy package files — Docker layer cache: npm install only reruns when package.json changes
 COPY package*.json ./
 
 # Install ALL deps including devDependencies (needed for tsc build)
 RUN npm ci
 
-# Download Patchright Chromium at build time so it's baked into the image
+# Download Patchright Chromium into /app/.pw-browsers — baked into image layer, persists at runtime
 RUN npx patchright install chromium
 
 # Copy source
@@ -79,19 +76,18 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-# Health check — must pass before Railway considers container healthy
-# start-period=60s gives Xvfb + Chromium time to start
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
-    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
-
 # Create non-root user and fix permissions
+# /app/.pw-browsers must be owned by nexus so the process can read the binary
 RUN useradd -r -s /bin/false nexus && \
     chown -R nexus:nexus /app && \
-    mkdir -p /tmp/pw-browsers /tmp/whisper-cache /tmp/.X99-lock && \
-    chown -R nexus:nexus /tmp/pw-browsers /tmp/whisper-cache
+    mkdir -p /tmp/whisper-cache && \
+    chown -R nexus:nexus /tmp/whisper-cache
 
 USER nexus
 
+# Health check — start-period=60s gives Xvfb + Chromium time to start
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
+    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+
 # Start Xvfb virtual display first, wait for it, then start the app
-# Chrome renders against :99 — CF sees a real GPU-rendered browser, not headless
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & sleep 2 && node dist/index.js"]
