@@ -21,11 +21,23 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
 
   if (proxy) {
     const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
+
+    const IS_LINUX = process.platform === 'linux'
+    const LINUX_FLAGS = IS_LINUX ? [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-crash-reporter',
+      '--noerrdialogs',
+    ] : []
+
     const ctx = await chromium.launchPersistentContext(tmpDir, {
       channel: 'chrome',
-      headless: process.env.HEADED !== 'true',
+      headless: false,
       viewport: null,
       args: [
+        ...LINUX_FLAGS,
         '--disable-save-password-bubble',
         '--disable-single-click-autofill',
         '--disable-autofill-keyboard-accessory-view',

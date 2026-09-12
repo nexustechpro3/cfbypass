@@ -72,7 +72,6 @@ export async function getOrCreate(
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-crash-reporter',
-        '--crash-dumps-dir=/tmp/chrome-crashpad-database',
         ...COMMON_FLAGS,
       ],
       ...(proxy ? {

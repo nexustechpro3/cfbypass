@@ -51,8 +51,8 @@ const LAUNCH_OPTIONS = IS_LINUX
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-crash-reporter',                        // ADD
-      '--crash-dumps-dir=/tmp/chrome-crashpad-database', // ADD
+      '--disable-crash-reporter',
+      '--noerrdialogs',
       ...COMMON_FLAGS,
     ],
   }
@@ -63,7 +63,6 @@ const LAUNCH_OPTIONS = IS_LINUX
     permissions: PERMISSIONS as unknown as string[],
     args: [...COMMON_FLAGS],
   }
-
 function cleanProfileDir(dirPath: string): void {
   try {
     if (dirPath && fs.existsSync(dirPath)) {

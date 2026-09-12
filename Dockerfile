@@ -1,19 +1,18 @@
 FROM node:20-bookworm-slim
 
-# Xenova/Transformers.js model cache — written at runtime, /tmp is fine
 ENV TRANSFORMERS_CACHE=/tmp/whisper-cache
-
-# Xvfb virtual display — Chrome runs headed against this, CF cannot detect headless
 ENV DISPLAY=:99
 ENV HEADED=true
+# Tell crashpad where to write — must be writable at runtime
+ENV BREAKPAD_DUMP_LOCATION=/tmp/chrome-crashpad-database
 
-# Install system deps + Chrome in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     gnupg \
     ffmpeg \
     xvfb \
+    x11-utils \
     fonts-liberation \
     fonts-noto-color-emoji \
     libasound2 \
@@ -65,24 +64,18 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-# Create nexus user and pre-create every /tmp path Chrome/crashpad/Xvfb will touch
 RUN useradd -r -s /bin/false nexus && \
-    chown -R nexus:nexus /app && \
-    mkdir -p \
-        /tmp/whisper-cache \
-        /tmp/.X11-unix \
-        /tmp/nexus-clearance-profile \
-        /tmp/chrome-crashpad-database \
-    && chmod 1777 /tmp/.X11-unix \
-    && chown -R nexus:nexus \
-        /tmp/whisper-cache \
-        /tmp/.X11-unix \
-        /tmp/nexus-clearance-profile \
-        /tmp/chrome-crashpad-database
+    chown -R nexus:nexus /app
 
 USER nexus
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & sleep 2 && node dist/index.js"]
+# Create /tmp dirs at runtime (tmpfs is remounted fresh — build-time mkdir is gone)
+CMD ["sh", "-c", "\
+  mkdir -p /tmp/.X11-unix /tmp/chrome-crashpad-database /tmp/whisper-cache /tmp/nexus-clearance-profile && \
+  chmod 1777 /tmp/.X11-unix && \
+  Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & \
+  until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done && \
+  node dist/index.js"]
