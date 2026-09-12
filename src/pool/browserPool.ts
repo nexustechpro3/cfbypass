@@ -1,10 +1,15 @@
-import { chromium, Browser } from 'patchright'
+import { chromium, BrowserContext } from 'patchright'
 import { buildHeaderProfile } from '../headers/chrome128'
+import * as path from 'path'
+import * as os from 'os'
 
-let _browser: Browser | null = null
+import * as fs from 'fs'
+
+let _context: BrowserContext | null = null
 let _ready = false
+let _restarting = false
+let _currentProfileDir = ''
 
-// Declare globals for concurrency tracking (used by guard middleware)
 declare global {
   var browserLength: number
   var browserLimit: number
@@ -15,43 +20,120 @@ global.browserLength = 0
 global.browserLimit = parseInt(process.env.BROWSER_LIMIT || '20', 10)
 global.timeOut = parseInt(process.env.TIMEOUT_MS || '120000', 10)
 
-const LAUNCH_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',     // Amendment 3: mandatory — Railway/Docker /dev/shm is 64MB
-  '--single-process',             // Amendment 4: saves 100–200MB RAM per instance on Railway
-  '--disable-gpu',
-  '--no-first-run',
-  '--no-zygote',
-  '--disable-extensions',
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-  '--window-size=1920,1080',
-  '--lang=en-US',
-  // NOTE: Do NOT add --disable-blink-features=AutomationControlled — Patchright handles internally
-  // NOTE: Do NOT add --expose-gc — Railway does not allow it (amendment 5)
+const COMMON_FLAGS = [
+  '--disable-save-password-bubble',
+  '--disable-single-click-autofill',
+  '--disable-autofill-keyboard-accessory-view',
+  '--password-store=basic',
+  '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,PasswordManager,PrivateNetworkAccessPermissionPrompt,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessRespectPreflightResults',
+  '--allow-insecure-localhost',
+  '--no-default-browser-check',
+  '--use-fake-ui-for-media-stream',
 ]
+
+const PERMISSIONS = [
+  'geolocation',
+  'notifications',
+  'clipboard-read',
+  'clipboard-write',
+] as const
+
+const IS_LINUX = process.platform === 'linux'
+
+const LAUNCH_OPTIONS = IS_LINUX
+  ? {
+    headless: process.env.HEADED !== 'true',
+    viewport: null as null,
+    permissions: PERMISSIONS as unknown as string[],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      ...COMMON_FLAGS,
+    ],
+  }
+  : {
+    channel: 'chrome' as const,
+    headless: false,
+    viewport: null as null,
+    permissions: PERMISSIONS as unknown as string[],
+    args: [
+      ...COMMON_FLAGS,
+    ],
+  }
+
+function cleanProfileDir(dirPath: string): void {
+  try {
+    if (dirPath && fs.existsSync(dirPath)) {
+      fs.rmSync(dirPath, { recursive: true, force: true })
+      console.log(`[BrowserPool] Cleaned profile directory: ${dirPath}`)
+    }
+  } catch (err) {
+    console.warn(`[BrowserPool] Could not delete profile directory ${dirPath}:`, err)
+  }
+}
+
+function getFreshProfileDir(): string {
+  if (process.env.USER_DATA_DIR) {
+    cleanProfileDir(process.env.USER_DATA_DIR)
+    return process.env.USER_DATA_DIR
+  }
+
+  const baseDir = path.join(os.tmpdir(), 'nexus-clearance-profile')
+  try {
+    if (fs.existsSync(baseDir)) {
+      fs.rmSync(baseDir, { recursive: true, force: true })
+    }
+    return baseDir
+  } catch (_) {
+    // If files are locked, create a fresh unique directory to ensure 100% clean state
+    return path.join(os.tmpdir(), `nexus-clearance-profile-${Date.now()}`)
+  }
+}
+
+async function launch(): Promise<void> {
+  _currentProfileDir = getFreshProfileDir()
+  console.log(`[BrowserPool] Launching with clean profile: ${_currentProfileDir}`)
+
+  _context = await chromium.launchPersistentContext(_currentProfileDir, LAUNCH_OPTIONS)
+
+  const browser = _context.browser()
+  const versionStr = browser ? browser.version() : 'Chrome/128.0.0.0'
+  console.log(`[BrowserPool] Browser version: ${versionStr}`)
+  buildHeaderProfile(versionStr)
+
+  _context.on('close', () => {
+    console.log('[BrowserPool] Browser context closed — auto-restarting...')
+    _ready = false
+    _context = null
+    cleanProfileDir(_currentProfileDir)
+    if (!_restarting) scheduleRestart()
+  })
+}
+
+function scheduleRestart(): void {
+  _restarting = true
+  setTimeout(async () => {
+    try {
+      await launch()
+      _ready = true
+      _restarting = false
+      console.log('[BrowserPool] Browser auto-restarted')
+    } catch (err) {
+      console.error('[BrowserPool] Auto-restart failed, retrying in 5s:', err)
+      _restarting = false
+      scheduleRestart()
+    }
+  }, 2000)
+}
 
 export async function init(): Promise<void> {
   console.log('[BrowserPool] Launching Patchright browser...')
   try {
-    _browser = await chromium.launch({
-      headless: process.env.HEADED !== 'true',
-      args: LAUNCH_ARGS,
-    })
-
-    // Amendment 2: Build dynamic header profile from actual browser version
-    const versionStr = _browser.version()
-    console.log(`[BrowserPool] Browser version: ${versionStr}`)
-    buildHeaderProfile(versionStr)
-
-    _browser.on('disconnected', () => {
-      console.log('[BrowserPool] Browser disconnected')
-      _ready = false
-      _browser = null
-    })
-
+    await launch()
     _ready = true
     console.log('[BrowserPool] Browser ready')
   } catch (err) {
@@ -63,29 +145,34 @@ export async function init(): Promise<void> {
 export async function restart(): Promise<void> {
   console.log('[BrowserPool] Restarting browser...')
   _ready = false
-  try {
-    await _browser?.close()
-  } catch (_) { /* ignore close errors */ }
-  _browser = null
-  await init()
+  _restarting = true
+  try { await _context?.close() } catch (_) { }
+  _context = null
+  cleanProfileDir(_currentProfileDir)
+  await launch()
+  _ready = true
+  _restarting = false
+  console.log('[BrowserPool] Browser restarted with clean state')
 }
 
 export async function shutdown(): Promise<void> {
   _ready = false
-  if (_browser) {
-    try {
-      await _browser.close()
-    } catch (_) { /* ignore */ }
-    _browser = null
-  }
-  console.log('[BrowserPool] Browser closed')
+  _restarting = true
+  try { await _context?.close() } catch (_) { }
+  _context = null
+  cleanProfileDir(_currentProfileDir)
+  console.log('[BrowserPool] Browser closed and profile cleaned')
 }
 
-export function getBrowser(): Browser {
-  if (!_browser) throw new Error('Browser not initialized')
-  return _browser
+export function getPersistentContext(): BrowserContext {
+  if (!_context) throw new Error('Browser not initialized')
+  return _context
+}
+
+export function getBrowser() {
+  return _context?.browser() ?? null
 }
 
 export function isReady(): boolean {
-  return _ready && _browser !== null
+  return _ready && _context !== null
 }

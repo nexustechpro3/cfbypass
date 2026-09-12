@@ -54,21 +54,21 @@ async function run(req: BypassRequest): Promise<unknown> {
 
     const result = await run(autoReq)
     // Attach detection metadata to result
-    return { ...( result as Record<string, unknown>), detection }
+    return { ...(result as Record<string, unknown>), detection }
   }
 
   switch (mode) {
-    case 'cloudflare':     return bypassCloudflare(req)
-    case 'turnstile-min':  return solveTurnstileMin(req)
-    case 'turnstile-max':  return solveTurnstileMax(req)
-    case 'cf-clearance':   return solveCfClearance(req)
-    case 'waf-session':    return getWafSession(req)
-    case 'source':         return getPageSource(req)
-    case 'hcaptcha':       return solveHcaptcha(req)
-    case 'recaptcha-v2':   return solveRecaptchaV2(req)
-    case 'recaptcha-v3':   return solveRecaptchaV3(req)
-    case 'aws-waf':        return solveAwsWaf(req)
-    default:               throw new Error(`Unknown mode: ${mode}`)
+    case 'cloudflare': return bypassCloudflare(req)
+    case 'turnstile-min': return solveTurnstileMin(req)
+    case 'turnstile-max': return solveTurnstileMax(req)
+    case 'cf-clearance': return solveCfClearance(req)
+    case 'waf-session': return getWafSession(req)
+    case 'source': return getPageSource(req)
+    case 'hcaptcha': return solveHcaptcha(req)
+    case 'recaptcha-v2': return solveRecaptchaV2(req)
+    case 'recaptcha-v3': return solveRecaptchaV3(req)
+    case 'aws-waf': return solveAwsWaf(req)
+    default: throw new Error(`Unknown mode: ${mode}`)
   }
 }
 
@@ -158,16 +158,16 @@ router.post('/bypass/batch', guard, async (req, res) => {
 
 // ── Shorthand mode routes ─────────────────────────────────────────────────────
 
-router.post('/cloudflare',    guard, validateBypass, (req, res) => handleSolve(req, res, { mode: 'cloudflare' }))
+router.post('/cloudflare', guard, validateBypass, (req, res) => handleSolve(req, res, { mode: 'cloudflare' }))
 router.post('/turnstile-min', guard, validateUrl, requireSiteKey, (req, res) => handleSolve(req, res, { mode: 'turnstile-min' }))
 router.post('/turnstile-max', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'turnstile-max' }))
-router.post('/cf-clearance',  guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'cf-clearance' }))
-router.post('/waf-session',   guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'waf-session' }))
-router.post('/source',        guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'source' }))
-router.post('/hcaptcha',      guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'hcaptcha' }))
-router.post('/recaptcha-v2',  guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'recaptcha-v2' }))
-router.post('/recaptcha-v3',  guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'recaptcha-v3' }))
-router.post('/aws-waf',       guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'aws-waf' }))
+router.post('/cf-clearance', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'cf-clearance' }))
+router.post('/waf-session', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'waf-session' }))
+router.post('/source', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'source' }))
+router.post('/hcaptcha', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'hcaptcha' }))
+router.post('/recaptcha-v2', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'recaptcha-v2' }))
+router.post('/recaptcha-v3', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'recaptcha-v3' }))
+router.post('/aws-waf', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'aws-waf' }))
 
 // ── Job queue ─────────────────────────────────────────────────────────────────
 
@@ -184,12 +184,17 @@ router.get('/jobs', (req, res) => {
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
+router.get('/sessions', guard, (req, res) => {
+  const sessions = list()
+  ok(res, { total: sessions.length, sessions })
+})
+
 router.post('/session/get', guard, async (req, res) => {
   const { url, sessionId = 'default', cookies } = req.body
   if (!url) { fail(res, 'BAD_REQUEST', 'url required', 400); return }
   global.browserLength++
   try {
-    const page = await getOrCreate(sessionId, cookies)
+    const { page } = await getOrCreate(sessionId, cookies)
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
     const source = await page.content()
     ok(res, { source, url: page.url(), sessionId })
@@ -205,7 +210,7 @@ router.post('/session/post', guard, async (req, res) => {
   if (!url) { fail(res, 'BAD_REQUEST', 'url required', 400); return }
   global.browserLength++
   try {
-    const page = await getOrCreate(sessionId, cookies)
+    const { page } = await getOrCreate(sessionId, cookies)
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
     for (const [selector, value] of Object.entries(fields)) {
       await page.fill(selector, String(value)).catch(() => { /* ignore missing fields */ })

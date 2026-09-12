@@ -1,5 +1,5 @@
 import { BrowserContext, Page } from 'patchright'
-import { borrow, returnCtx } from '../pool/contextPool'
+import { borrow, returnCtx, registerPage } from '../pool/contextPool'
 import type { ProxyConfig, CookieParam } from '../types'
 import {
   CF_POLL_INTERVAL_MS,
@@ -7,11 +7,8 @@ import {
   TOKEN_POLL_INTERVAL_MS,
 } from '../constants'
 
-const TIMEOUT_MS = parseInt(process.env.TIMEOUT_MS || '120000', 10)
-
 // --- Polling helpers ---
 
-/** Polls page title/body text until CF challenge text is gone. */
 export async function waitForCF(page: Page, ms = 30000): Promise<boolean> {
   const deadline = Date.now() + ms
   const CF_TEXTS = [
@@ -29,37 +26,29 @@ export async function waitForCF(page: Page, ms = 30000): Promise<boolean> {
         page.title().catch(() => ''),
         page.evaluate(() => document.body?.innerText ?? '').catch(() => ''),
       ])
-
       const combined = (title + ' ' + bodyText).toLowerCase()
-      const isChallenge = CF_TEXTS.some(t => combined.includes(t.toLowerCase()))
-      if (!isChallenge) return true
-    } catch (_) { /* page may be navigating */ }
-
+      if (!CF_TEXTS.some(t => combined.includes(t.toLowerCase()))) return true
+    } catch (_) { }
     await sleep(CF_POLL_INTERVAL_MS)
   }
   return false
 }
 
-/** Polls context cookies until cf_clearance appears — definitive CF-solved signal. */
 export async function waitForClearance(page: Page, ms = 90000): Promise<string | null> {
   const deadline = Date.now() + ms
-
   while (Date.now() < deadline) {
     try {
       const cookies = await page.context().cookies()
       const c = cookies.find(ck => ck.name === 'cf_clearance')
       if (c?.value) return c.value
-    } catch (_) { /* ignore */ }
-
+    } catch (_) { }
     await sleep(CLEARANCE_POLL_INTERVAL_MS)
   }
   return null
 }
 
-/** Polls for Turnstile token via hidden input or window.turnstile.getResponse(). */
 export async function waitForToken(page: Page, ms = 60000): Promise<string | null> {
   const deadline = Date.now() + ms
-
   while (Date.now() < deadline) {
     try {
       const token = await page.evaluate(() => {
@@ -72,10 +61,8 @@ export async function waitForToken(page: Page, ms = 60000): Promise<string | nul
         }
         return null
       })
-
       if (token) return token
-    } catch (_) { /* ignore during navigation */ }
-
+    } catch (_) { }
     await sleep(TOKEN_POLL_INTERVAL_MS)
   }
   return null
@@ -83,59 +70,65 @@ export async function waitForToken(page: Page, ms = 60000): Promise<string | nul
 
 // --- Context helpers ---
 
-/** Creates a fresh browser context with optional proxy. */
-export async function mkCtx(proxy?: ProxyConfig): Promise<BrowserContext> {
-  return borrow(proxy)
-}
-
-/** Sets up a page: Sec-Fetch headers only. NO evasion scripts — Patchright handles at binary level. */
-export async function setupPage(page: Page): Promise<void> {
-  await page.setExtraHTTPHeaders({
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-User': '?1',
-    'Sec-Fetch-Dest': 'document',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br, zstd',
-  })
+/**
+ * setupPage — intentionally empty.
+ * setExtraHTTPHeaders applies to ALL requests (CSS/fonts/images) and breaks
+ * subresource loading which causes blank pages. Patchright handles all
+ * fingerprinting at the binary level.
+ */
+export async function setupPage(_page: Page): Promise<void> {
+  // Intentionally empty — Patchright handles everything
 }
 
 /**
- * Wraps a browser context with timeout, cleanup, and error handling.
- * Context-per-request with race between solver timeout and global context timeout.
+ * withCtx — the core request wrapper.
+ * Each call gets a unique requestId. The page opened inside fn() is
+ * registered by that requestId so returnCtx closes ONLY that page,
+ * never touching concurrent requests' pages.
  */
 export async function withCtx<T>(
   proxy: ProxyConfig | undefined,
-  fn: (ctx: BrowserContext) => Promise<T>
+  fn: (ctx: BrowserContext, requestId: string) => Promise<T>
 ): Promise<T> {
-  const ctx = await borrow(proxy)
+  const { ctx, requestId } = await borrow(proxy)
   let hadError = false
 
-  // Listen for new pages created inside this context — call setupPage on each
-  ctx.on('page', async (newPage: Page) => {
-    try {
-      await setupPage(newPage)
-    } catch (_) { /* ignore */ }
-  })
-
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Solver timeout')), TIMEOUT_MS)
-  )
-
   try {
-    const result = await Promise.race([fn(ctx), timeout])
-    return result
+    return await fn(ctx, requestId)
   } catch (err) {
     hadError = true
     throw err
   } finally {
-    await returnCtx(ctx, hadError)
+    await returnCtx(ctx, hadError, requestId)
   }
 }
 
+/**
+ * withSessionOrCtx — routes to persistent session tab if req.sessionId is provided,
+ * or borrows an ephemeral tab via withCtx if not.
+ */
+export async function withSessionOrCtx<T>(
+  req: { sessionId?: string; proxy?: ProxyConfig; setCookies?: CookieParam[] },
+  fn: (ctx: BrowserContext, page: Page, requestId: string, isSession: boolean) => Promise<T>
+): Promise<T> {
+  if (req.sessionId) {
+    const { getOrCreate } = await import('../services/sessionStore')
+    const { page, ctx } = await getOrCreate(req.sessionId, req.setCookies, req.proxy)
+    return await fn(ctx, page, req.sessionId, true)
+  }
+
+  return withCtx(req.proxy, async (ctx, requestId) => {
+    const page = await ctx.newPage()
+    registerPage(requestId, page)
+    return await fn(ctx, page, requestId, false)
+  })
+}
+
+// Re-export registerPage so solvers can use it
+export { registerPage }
+
 // --- Page interaction helpers ---
 
-/** Tries page.click first, falls back to evaluate click if element not interactable. */
 export async function safeClick(page: Page, selector: string): Promise<void> {
   try {
     await page.click(selector, { timeout: 5000 })
@@ -147,20 +140,17 @@ export async function safeClick(page: Page, selector: string): Promise<void> {
   }
 }
 
-/** Types into a field with delay, verifies value, retypes if mismatch. */
 export async function typeField(page: Page, selector: string, value: string): Promise<void> {
   await page.waitForSelector(selector, { timeout: 10000 })
   await page.click(selector)
   await page.keyboard.press('Control+a')
   await sleep(50)
   await page.keyboard.type(value, { delay: 50 })
-  // Verify typed value
   const actual = await page.evaluate((sel) => {
     const el = document.querySelector<HTMLInputElement>(sel)
     return el?.value ?? ''
   }, selector)
   if (actual !== value) {
-    // Retype
     await page.click(selector)
     await page.keyboard.press('Control+a')
     await page.keyboard.type(value, { delay: 80 })
@@ -169,50 +159,28 @@ export async function typeField(page: Page, selector: string, value: string): Pr
 
 // --- Cookie helpers ---
 
-/** Convert our CookieParam to Playwright's addCookies format */
 export function toPwCookies(url: string, cookies: CookieParam[]): Array<{
-  name: string
-  value: string
-  domain?: string
-  path?: string
-  expires?: number
-  httpOnly?: boolean
-  secure?: boolean
+  name: string; value: string; domain?: string; path?: string
+  expires?: number; httpOnly?: boolean; secure?: boolean
   sameSite?: 'Strict' | 'Lax' | 'None'
 }> {
   const domain = new URL(url).hostname
   return cookies.map(c => ({
-    name: c.name,
-    value: c.value,
-    domain: c.domain ?? domain,
-    path: c.path ?? '/',
-    expires: c.expires,
-    httpOnly: c.httpOnly,
-    secure: c.secure,
-    sameSite: c.sameSite,
+    name: c.name, value: c.value,
+    domain: c.domain ?? domain, path: c.path ?? '/',
+    expires: c.expires, httpOnly: c.httpOnly,
+    secure: c.secure, sameSite: c.sameSite,
   }))
 }
 
-/** Convert Playwright Cookie[] to our CookieParam[] */
 export function fromPwCookies(cookies: Array<{
-  name: string
-  value: string
-  domain: string
-  path: string
-  expires: number
-  httpOnly: boolean
-  secure: boolean
+  name: string; value: string; domain: string; path: string
+  expires: number; httpOnly: boolean; secure: boolean
   sameSite: 'Strict' | 'Lax' | 'None'
 }>): CookieParam[] {
   return cookies.map(c => ({
-    name: c.name,
-    value: c.value,
-    domain: c.domain,
-    path: c.path,
-    expires: c.expires,
-    httpOnly: c.httpOnly,
-    secure: c.secure,
-    sameSite: c.sameSite,
+    name: c.name, value: c.value, domain: c.domain, path: c.path,
+    expires: c.expires, httpOnly: c.httpOnly, secure: c.secure, sameSite: c.sameSite,
   }))
 }
 
@@ -222,7 +190,6 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-/** Build proxy URL string from ProxyConfig */
 export function buildProxyUrl(proxy: ProxyConfig): string {
   const scheme = proxy.protocol ?? 'http'
   if (proxy.username && proxy.password) {

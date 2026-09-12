@@ -394,8 +394,8 @@ export async function detect(url: string, proxy?: ProxyConfig): Promise<Detectio
     // ── 10. Add base CF challenge to challenges list ──────────────────────────
     if (hasCloudflare && cfChallengeType && !challenges.includes('cf-turnstile')) {
       switch (cfChallengeType) {
-        case 'js':          challenges.unshift('cf-js-challenge'); break
-        case 'managed':     challenges.unshift('cf-managed-challenge'); break
+        case 'js': challenges.unshift('cf-js-challenge'); break
+        case 'managed': challenges.unshift('cf-managed-challenge'); break
         case 'interactive': challenges.unshift('cf-interactive-challenge'); break
       }
     }
@@ -415,10 +415,13 @@ export async function detect(url: string, proxy?: ProxyConfig): Promise<Detectio
       mode = 'recaptcha-v2'
     } else if (challenges.includes('recaptcha-v3') && !hasCloudflare) {
       mode = 'recaptcha-v3'
-    } else if (challenges.includes('cf-turnstile') && cfChallengeType === 'turnstile') {
-      // Turnstile on a CF challenge page
-      mode = turnstileSiteKey ? 'turnstile-min' : 'turnstile-max'
     } else if (hasCloudflare) {
+      // Always use full cloudflare bypass when CF is wrapping the page
+      // This handles CF + embedded Turnstile, CF JS challenge, CF managed challenge
+      mode = 'cloudflare'
+    } else if (challenges.includes('cf-turnstile') && !hasCloudflare) {
+      // Standalone Turnstile widget on a non-CF page (rare)
+      mode = turnstileSiteKey ? 'turnstile-min' : 'turnstile-max'
       // CF JS/managed challenge — full bypass
       mode = 'cloudflare'
     } else if (challenges[0] === 'none') {

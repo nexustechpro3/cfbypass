@@ -1,87 +1,135 @@
-import { BrowserContext } from 'patchright'
-import { getBrowser } from './browserPool'
+import { BrowserContext, chromium, Page } from 'patchright'
+import { getPersistentContext } from './browserPool'
 import type { ProxyConfig } from '../types'
+import * as path from 'path'
+import * as os from 'os'
+import * as fs from 'fs'
+import { randomUUID } from 'crypto'
 
-// Amendment 11: default pool size is 1 (not 3). Each context is 300–500MB.
-const POOL_SIZE = parseInt(process.env.CONTEXT_POOL_SIZE || '1', 10)  // Amendment 14: parseInt
+const POOL_SIZE = parseInt(process.env.CONTEXT_POOL_SIZE || '1', 10)
 
-const pool: BrowserContext[] = []
-let initializing = false
+// Registry: requestId → Page — each request owns exactly one page by UUID
+const pageRegistry = new Map<string, Page>()
 
-function buildProxyOption(proxy?: ProxyConfig): { server: string; username?: string; password?: string } | undefined {
-  if (!proxy) return undefined
-  const scheme = proxy.protocol ?? 'http'
-  const server = `${scheme}://${proxy.host}:${proxy.port}`
-  return {
-    server,
-    username: proxy.username,
-    password: proxy.password,
-  }
+export interface BorrowResult {
+  ctx: BrowserContext
+  requestId: string
 }
 
-async function createContext(proxy?: ProxyConfig): Promise<BrowserContext> {
-  const browser = getBrowser()
-  const ctx = await browser.newContext({
-    proxy: buildProxyOption(proxy),
-    userAgent: undefined, // Patchright sets its own — do NOT override
-  })
-  return ctx
+export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
+  const requestId = randomUUID()
+
+  if (proxy) {
+    const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
+    const ctx = await chromium.launchPersistentContext(tmpDir, {
+      channel: 'chrome',
+      headless: process.env.HEADED !== 'true',
+      viewport: null,
+      args: [
+        '--disable-save-password-bubble',
+        '--disable-single-click-autofill',
+        '--disable-autofill-keyboard-accessory-view',
+        '--password-store=basic',
+        '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,PasswordManager',
+      ],
+      proxy: {
+        server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
+        ...(proxy.username ? { username: proxy.username } : {}),
+        ...(proxy.password ? { password: proxy.password } : {}),
+      }
+    })
+    return { ctx, requestId }
+  }
+
+  return { ctx: getPersistentContext(), requestId }
+}
+
+export function registerPage(requestId: string, page: Page): void {
+  pageRegistry.set(requestId, page)
+  // Auto-accept any browser dialogs (alerts, confirms, prompts)
+  page.on('dialog', dialog => dialog.accept().catch(() => { }))
+}
+
+export async function returnCtx(
+  ctx: BrowserContext,
+  hadError: boolean,
+  requestId: string
+): Promise<void> {
+  // Get the exact page this request opened
+  const page = pageRegistry.get(requestId)
+  pageRegistry.delete(requestId)
+
+  let persistent: BrowserContext | null = null
+  try { persistent = getPersistentContext() } catch (_) { }
+
+  if (ctx === persistent) {
+    if (page && !page.isClosed()) {
+      // 1. Wipe cookies, localStorage, and sessionStorage for the active page
+      try {
+        const url = page.url()
+        if (url && !url.startsWith('about:')) {
+          const parsed = new URL(url)
+          const origin = parsed.origin
+          const hostname = parsed.hostname
+
+          // Clear client storage in the page
+          await page.evaluate(() => {
+            try { localStorage.clear() } catch (_) { }
+            try { sessionStorage.clear() } catch (_) { }
+          }).catch(() => { })
+
+          // Use Chrome DevTools Protocol to clear all data for this origin (cookies, indexeddb, storage)
+          try {
+            const client = await ctx.newCDPSession(page)
+            await client.send('Storage.clearDataForOrigin', {
+              origin,
+              storageTypes: 'all',
+            })
+            await client.detach().catch(() => { })
+          } catch (_) {
+            // Fallback: clear cookies by domain matching
+            await ctx.clearCookies({ domain: hostname }).catch(() => { })
+            const parts = hostname.split('.')
+            if (parts.length > 2) {
+              await ctx.clearCookies({ domain: parts.slice(1).join('.') }).catch(() => { })
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[ContextPool] Failed to clear page session data:', err)
+      }
+
+      const activePages = ctx.pages().filter(p => !p.isClosed())
+      if (activePages.length <= 1) {
+        // This is the last tab — wipe all context cookies and navigate to blank to keep browser alive
+        await ctx.clearCookies().catch(() => { })
+        await page.goto('about:blank').catch(() => { })
+      } else {
+        // Other requests still have active tabs — only close this one
+        await page.close().catch(() => { })
+      }
+    }
+    return
+  }
+
+  // Proxy context — close entirely and clean up its ephemeral folder
+  await ctx.close().catch(() => { })
+  try {
+    const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  } catch (_) { }
 }
 
 export async function warmPool(): Promise<void> {
-  if (initializing) return
-  initializing = true
-  const toFill = Math.max(0, POOL_SIZE - pool.length)
-  for (let i = 0; i < toFill; i++) {
-    try {
-      const ctx = await createContext()
-      pool.push(ctx)
-    } catch (err) {
-      console.error('[ContextPool] Failed to warm context:', err)
-    }
-  }
-  initializing = false
-  console.log(`[ContextPool] Pool warmed: ${pool.length}/${POOL_SIZE}`)
+  console.log(`[ContextPool] Pool warmed: 1/${POOL_SIZE}`)
 }
 
-/** Borrow a context. Returns a fresh one if pool is empty. */
-export async function borrow(proxy?: ProxyConfig): Promise<BrowserContext> {
-  // If proxy is specified, always create a fresh context (proxy is per-context)
-  if (proxy) {
-    return createContext(proxy)
-  }
-
-  const ctx = pool.pop()
-  if (ctx && !ctx.pages().every(p => p.isClosed())) {
-    return ctx
-  }
-  if (ctx) {
-    // Context is stale — close it silently
-    ctx.close().catch(() => { /* ignore */ })
-  }
-  return createContext()
-}
-
-/** Return context to pool after successful use. Destroy it on error. */
-export async function returnCtx(ctx: BrowserContext, hadError: boolean): Promise<void> {
-  if (hadError) {
-    ctx.close().catch(() => { /* ignore */ })
-    return
-  }
-  if (pool.length < POOL_SIZE) {
-    pool.push(ctx)
-  } else {
-    ctx.close().catch(() => { /* ignore */ })
-  }
-}
-
-/** Drain all pooled contexts — called by memoryManager on high memory. */
 export async function drain(): Promise<void> {
-  const contexts = pool.splice(0, pool.length)
-  await Promise.allSettled(contexts.map(c => c.close()))
-  console.log('[ContextPool] Pool drained')
+  console.log('[ContextPool] Drain — persistent context stays alive')
 }
 
 export function poolSize(): number {
-  return pool.length
+  try { getPersistentContext(); return 1 } catch { return 0 }
 }

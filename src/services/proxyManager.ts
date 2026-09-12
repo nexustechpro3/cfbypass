@@ -56,17 +56,19 @@ export async function refresh(): Promise<void> {
       ip: string
       port: number
       protocol: string
-      country: string
+      ip_data: { countryCode: string }
       anonymity: string
       uptime: number
-      average_timeout: number
+      timeout: number
+      alive: boolean
     }> = res.data?.proxies ?? res.data ?? []
 
     const filtered = raw.filter(p => {
-      if (!PROXY_COUNTRIES.includes(p.country?.toUpperCase())) return false
+      if (!p.alive) return false
+      if (!PROXY_COUNTRIES.includes(p.ip_data?.countryCode?.toUpperCase())) return false
       if (p.anonymity?.toLowerCase() !== 'elite') return false
       if ((p.uptime ?? 0) < PROXY_MIN_UPTIME) return false
-      if ((p.average_timeout ?? 9999) > PROXY_MAX_TIMEOUT) return false
+      if ((p.timeout ?? 9999) > PROXY_MAX_TIMEOUT) return false
       if (BLACKLISTED_PORTS.has(p.port)) return false
       return true
     })
@@ -81,10 +83,10 @@ export async function refresh(): Promise<void> {
           host: p.ip,
           port: p.port,
           protocol,
-          country: p.country?.toUpperCase() ?? 'XX',
+          country: p.ip_data?.countryCode?.toUpperCase() ?? 'XX',
           uptime: p.uptime ?? 0,
-          average_timeout: p.average_timeout ?? 9999,
-          score: 3, // new proxies enter at neutral score
+          average_timeout: p.timeout ?? 9999,
+          score: 3,
           failures: 0,
           banned: false,
         })
@@ -206,8 +208,8 @@ export function getCountryBreakdown(): Record<string, number> {
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
-export function init(): void {
-  refresh().catch(err => console.error('[ProxyManager] Initial refresh failed:', err))
+export async function init(): Promise<void> {
+  await refresh()  // await instead of fire-and-forget
   refreshTimer = setInterval(
     () => refresh().catch(err => console.error('[ProxyManager] Refresh error:', err)),
     PROXY_REFRESH_INTERVAL_MS

@@ -35,6 +35,15 @@ export interface InterceptRule {
   type: 'json' | 'binary' | 'text'
 }
 
+export interface ResolveRequestConfig {
+  url: string
+  method?: string
+  headers?: Record<string, string>
+  body?: unknown
+  timeout?: number
+  responsePath?: string
+}
+
 export interface ActionItem {
   type:
     | 'click'
@@ -51,6 +60,8 @@ export interface ActionItem {
     | 'evaluate'
     | 'evaluateAndReturn'
     | 'screenshot'
+    | 'solveCanvas'
+    | 'resolve'
   selector?: string
   value?: string
   key?: string
@@ -60,10 +71,20 @@ export interface ActionItem {
   name?: string
   x?: number
   y?: number
+  offsetX?: number
+  offsetY?: number
+  trace?: Array<{ x: number; y: number } | [number, number]>
   ms?: number
   wait?: number
   timeout?: number
   fullPage?: boolean
+  click?: boolean
+  request?: ResolveRequestConfig
+  // Backward compatibility convenience fields
+  geminiKey?: string
+  prompt?: string
+  model?: string
+  vfyUrl?: string
 }
 
 export interface LoginConfig {
@@ -116,6 +137,7 @@ export interface BypassResult {
   solveMs: number
   proxy: string | null
   mode: SolverMode
+  sessionId?: string
 }
 
 export interface WafSessionResult {
