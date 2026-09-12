@@ -14,17 +14,19 @@ let _chromeVersion = ''
  * versionStr is the string returned by browser.version() e.g. "Chromium/128.0.6613.119"
  */
 export function buildHeaderProfile(versionStr: string): void {
-  // Parse major version from e.g. "Chromium/128.0.6613.119" or "Chrome/128.0.6613.119"
   const match = versionStr.match(/(?:Chromium|Chrome)\/(\d+)\./)
   _chromeVersion = match ? match[1] : '128'
 
+  const IS_LINUX = process.platform === 'linux'
+  const platform = IS_LINUX ? 'Linux' : 'Windows'
+  const uaPlatform = IS_LINUX
+    ? 'X11; Linux x86_64'
+    : 'Windows NT 10.0; Win64; x64'
+
   _ua =
-    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ` +
+    `Mozilla/5.0 (${uaPlatform}) AppleWebKit/537.36 ` +
     `(KHTML, like Gecko) Chrome/${_chromeVersion}.0.0.0 Safari/537.36`
 
-  // Exact header set Chrome sends on first navigation, in exact order.
-  // sec-ch-ua version MUST match UA version string.
-  // zstd in Accept-Encoding is Chrome 121+ — absence is a detection signal.
   _headers = {
     'User-Agent': _ua,
     Accept:
@@ -33,7 +35,7 @@ export function buildHeaderProfile(versionStr: string): void {
     'Accept-Encoding': 'gzip, deflate, br, zstd',
     'sec-ch-ua': `"Chromium";v="${_chromeVersion}", "Not;A=Brand";v="24", "Google Chrome";v="${_chromeVersion}"`,
     'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
+    'sec-ch-ua-platform': `"${platform}"`,   // dynamic
     'Upgrade-Insecure-Requests': '1',
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-Mode': 'navigate',
@@ -42,7 +44,6 @@ export function buildHeaderProfile(versionStr: string): void {
     Connection: 'keep-alive',
   }
 
-  // For XHR/fetch inside a site
   _headersXhr = {
     ..._headers,
     'Sec-Fetch-Site': 'same-origin',
@@ -54,7 +55,10 @@ export function buildHeaderProfile(versionStr: string): void {
 }
 
 export function getChromeUA(): string {
-  return _ua || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+  if (_ua) return _ua
+  const IS_LINUX = process.platform === 'linux'
+  const uaPlatform = IS_LINUX ? 'X11; Linux x86_64' : 'Windows NT 10.0; Win64; x64'
+  return `Mozilla/5.0 (${uaPlatform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36`
 }
 
 export function getChromeHeaders(): Record<string, string> {
