@@ -59,6 +59,7 @@
     <a href="#flaresolverr">FlareSolverr Migration</a>
     <h4>Core Endpoints</h4>
     <a href="#bypass">POST /bypass</a>
+    <a href="#actions">Actions & AI Solver</a>
     <a href="#batch">POST /bypass/batch</a>
     <a href="#modes">Shorthand Modes</a>
     <h4>Jobs & Sessions</h4>
@@ -127,21 +128,92 @@ FlareSolverr URL: http://nexus-clearance:3000</pre>
       <tr><td>country</td><td>string</td><td><span class="tag optional">optional</span></td><td>Proxy country filter: HK, KH, TW, KR, VN</td></tr>
       <tr><td>setCookies</td><td>array</td><td><span class="tag optional">optional</span></td><td>Inject cookies before navigation</td></tr>
       <tr><td>intercept</td><td>array</td><td><span class="tag optional">optional</span></td><td>Capture in-flight responses: [{url, type}]</td></tr>
-      <tr><td>actions</td><td>array</td><td><span class="tag optional">optional</span></td><td>Actions pipeline (see below)</td></tr>
-      <tr><td>sessionId</td><td>string</td><td><span class="tag optional">optional</span></td><td>Reuse named browser context</td></tr>
+      <tr><td>actions</td><td>array</td><td><span class="tag optional">optional</span></td><td>Actions pipeline executed sequentially after page load (see below)</td></tr>
+      <tr><td>sessionId</td><td>string</td><td><span class="tag optional">optional</span></td><td>Reuses a dedicated persistent browser context & open tab for up to 5 minutes (auto-destroyed after 5 mins TTL). DOM and cookies persist across multiple /bypass requests.</td></tr>
       <tr><td>async</td><td>boolean</td><td><span class="tag optional">optional</span></td><td>Fire-and-forget, returns jobId</td></tr>
       <tr><td>webhook</td><td>object</td><td><span class="tag optional">optional</span></td><td>POST result to URL when done: {url, method, headers}</td></tr>
     </table>
 
-    <h3>Actions Pipeline</h3>
-    <p>14 action types: <code>click</code>, <code>type</code>, <code>scroll</code>, <code>hover</code>, <code>select</code>, <code>keypress</code>, <code>wait</code>, <code>navigate</code>, <code>waitForSelector</code>, <code>waitForText</code>, <code>waitForURL</code>, <code>evaluate</code>, <code>evaluateAndReturn</code>, <code>screenshot</code>.</p>
+    <h3 id="actions">Actions Pipeline</h3>
+    <p>15 action types executed sequentially: <code>click</code>, <code>type</code>, <code>scroll</code>, <code>hover</code>, <code>select</code>, <code>keypress</code>, <code>wait</code>, <code>navigate</code>, <code>waitForSelector</code>, <code>waitForText</code>, <code>waitForURL</code>, <code>evaluate</code>, <code>evaluateAndReturn</code>, <code>screenshot</code>, and <code>resolve</code>.</p>
     <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>"actions": [
+  { "type": "waitForSelector", "selector": "#login-btn" },
   { "type": "click", "selector": "#login-btn" },
   { "type": "type", "selector": "#email", "value": "user@example.com" },
   { "type": "wait", "ms": 500 },
   { "type": "evaluateAndReturn", "script": "return document.title", "name": "pageTitle" },
   { "type": "screenshot", "name": "after_login", "fullPage": false }
 ]</pre>
+
+    <h3>Visual AI & Canvas Solver: <code>resolve</code></h3>
+    <p>The <code>resolve</code> action provides universal, caller-driven visual puzzle solving. NexusClearance captures the target element, injects the base64 image into your custom HTTP request, calls your AI vision model (Google Gemini, OpenAI GPT-4o, Anthropic Claude, or a custom solver), parses the target coordinates, and executes a human-like Bezier mouse movement and click directly on the canvas.</p>
+    
+    <p><strong>Available Body Placeholders:</strong></p>
+    <ul>
+      <li style="margin-left:20px;color:var(--muted);"><code style="color:var(--accent)">{{image}}</code> — The raw base64-encoded PNG data of the target element.</li>
+      <li style="margin-left:20px;color:var(--muted);"><code style="color:var(--accent)">{{w}}</code> — The element's client width in CSS pixels.</li>
+      <li style="margin-left:20px;color:var(--muted);"><code style="color:var(--accent)">{{h}}</code> — The element's client height in CSS pixels.</li>
+    </ul>
+
+    <p style="margin-top:12px"><strong>Example 1: Google Gemini Flash Vision Solver</strong></p>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
+  "url": "https://example.com/login",
+  "mode": "cloudflare",
+  "sessionId": "user_session_1",
+  "actions": [
+    { "type": "waitForSelector", "selector": "canvas#captcha" },
+    {
+      "type": "resolve",
+      "selector": "canvas#captcha",
+      "request": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=YOUR_API_KEY",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "contents": [{
+            "parts": [
+              { "text": "Locate the target puzzle coordinates x and y within width {{w}} and height {{h}}. Output strictly JSON: {\"x\": number, \"y\": number}" },
+              { "inline_data": { "mime_type": "image/png", "data": "{{image}}" } }
+            ]
+          }]
+        }
+      },
+      "timeout": 25000
+    },
+    { "type": "wait", "ms": 1500 }
+  ]
+}</pre>
+
+    <p style="margin-top:12px"><strong>Example 2: OpenAI GPT-4o Vision Solver</strong></p>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>{
+  "url": "https://example.com/portal",
+  "mode": "cloudflare",
+  "actions": [
+    {
+      "type": "resolve",
+      "selector": "canvas#captcha-box",
+      "request": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer YOUR_OPENAI_KEY"
+        },
+        "body": {
+          "model": "gpt-4o",
+          "response_format": { "type": "json_object" },
+          "messages": [{
+            "role": "user",
+            "content": [
+              { "type": "text", "text": "Locate target coordinates x and y within width {{w}} and height {{h}}. Output strictly JSON: {\"x\": number, \"y\": number}" },
+              { "type": "image_url", "image_url": { "url": "data:image/png;base64,{{image}}" } }
+            ]
+          }]
+        }
+      }
+    }
+  ]
+}</pre>
 
     <h2 id="batch">POST /bypass/batch</h2>
     <div class="endpoint"><span class="method post">POST</span>/bypass/batch</div>
@@ -175,14 +247,41 @@ FlareSolverr URL: http://nexus-clearance:3000</pre>
 POST /bypass { "async": true } → { "jobId": "uuid", "status": "pending" }
 GET /job/uuid → { "status": "done"|"failed"|"pending", "result": {...}, "error": null }</pre>
 
-    <h2 id="sessions">Sessions</h2>
+    <h2 id="sessions">Sessions & Persistent Browser Contexts</h2>
+    <p>Persistent sessions allow multiple <code>/bypass</code> requests or direct page interactions to share the same isolated browser context and open page tab without re-initializing browser state or losing cookies. Every persistent session has a hard <strong>5-minute auto-destroy TTL</strong> (300,000 ms) to guarantee system memory is always reclaimed.</p>
+
+    <div class="endpoint"><span class="method get">GET</span>/sessions</div>
+    <div class="endpoint"><span class="method post">POST</span>/session/destroy</div>
     <div class="endpoint"><span class="method post">POST</span>/session/get</div>
     <div class="endpoint"><span class="method post">POST</span>/session/post</div>
-    <div class="endpoint"><span class="method post">POST</span>/session/destroy</div>
-    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Persistent named session — cookies survive across requests
-POST /session/get  { "url": "...", "sessionId": "my-session" }
-POST /session/post { "url": "...", "sessionId": "my-session", "fields": { "#username": "user" } }
-POST /session/destroy { "sessionId": "my-session" }  // or "all"</pre>
+
+    <h3>Listing Active Sessions</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// GET /sessions
+// Response:
+{
+  "success": true,
+  "data": [
+    {
+      "sessionId": "user_session_1",
+      "createdAt": "2026-09-12T18:00:00.000Z",
+      "expiresInMs": 240000
+    }
+  ]
+}</pre>
+
+    <h3>Destroying Sessions</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Destroy a specific session immediately
+POST /session/destroy
+{ "sessionId": "user_session_1" }
+
+// Or terminate all active sessions at once
+POST /session/destroy
+{ "sessionId": "all" }</pre>
+
+    <h3>Direct Session Navigation</h3>
+    <pre><button class="copy-btn" onclick="copyPre(this)">Copy</button>// Navigate or submit forms within the session's active tab
+POST /session/get  { "url": "https://example.com/dashboard", "sessionId": "user_session_1" }
+POST /session/post { "url": "https://example.com/settings", "sessionId": "user_session_1", "fields": { "#email": "user@example.com" } }</pre>
 
     <h2 id="proxy">Proxy Endpoints</h2>
     <div class="endpoint"><span class="method get">GET</span>/get-proxy?country=HK</div>

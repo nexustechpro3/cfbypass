@@ -9,6 +9,23 @@ const clients = new Set<SseSendFn>()
 
 export function addClient(send: SseSendFn): void {
   clients.add(send)
+  try {
+    send('stats', {
+      queue: global.browserLength,
+      pool: {
+        busy: global.browserLength,
+        total: global.browserLimit,
+        pooled: poolSize(),
+      },
+      memMb: currentHeapMb(),
+      solveStats: getStats(),
+      proxyStats: getProxyStats(),
+    })
+    const pStats = getProxyStats()
+    if (pStats) {
+      send('proxy', pStats)
+    }
+  } catch (_) { /* client may have disconnected */ }
 }
 
 export function removeClient(send: SseSendFn): void {

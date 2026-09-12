@@ -57,6 +57,8 @@
   .hist-chip:hover { color:var(--text); }
   .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  .modal-backdrop { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:10px; max-width:620px; width:100%; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
   @media (max-width:900px) { .layout { grid-template-columns:1fr; } .left { border-right:none; border-bottom:1px solid var(--border); } }
 </style>
 </head>
@@ -76,6 +78,7 @@
     <label>Mode</label>
     <select id="mode">
       <option value="cloudflare">cloudflare</option>
+      <option value="auto">auto (detect & solve)</option>
       <option value="turnstile-min">turnstile-min</option>
       <option value="turnstile-max">turnstile-max</option>
       <option value="cf-clearance">cf-clearance</option>
@@ -157,8 +160,12 @@
           <label>Webhook URL</label>
           <input type="text" id="webhookUrl" placeholder="https://myapp.com/hook">
         </div>
-        <label>Session ID</label>
-        <input type="text" id="sessionId" placeholder="my-session (optional)">
+        <label>Session ID <span style="font-size:11px;color:var(--muted);font-weight:normal;">(keeps browser tab alive for 5 mins)</span></label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="sessionId" placeholder="session-user-1 (optional)" style="flex:1">
+          <button type="button" class="copy-btn" onclick="destroyCurrentSession()" style="position:static;padding:7px 10px;" title="Destroy current session">Destroy</button>
+          <button type="button" class="copy-btn" onclick="listActiveSessions()" style="position:static;padding:7px 10px;" title="View all active sessions">Sessions</button>
+        </div>
       </div>
     </div>
 
@@ -180,8 +187,12 @@
             <option value="waitForSelector">waitForSelector</option>
             <option value="waitForText">waitForText</option>
             <option value="keypress">keypress</option>
+            <option value="resolve">resolve (visual AI solver)</option>
           </select>
-          <button onclick="addAction()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;">+ Add</button>
+          <div style="display:flex;gap:6px;">
+            <button onclick="addAction()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;flex:1;">+ Add</button>
+            <button onclick="openRawModal()" style="background:var(--border);color:var(--text);border:none;border-radius:6px;padding:8px 10px;cursor:pointer;" title="Paste JSON Action">+ JSON</button>
+          </div>
         </div>
         <div id="actionList" class="action-list"></div>
       </div>
@@ -247,6 +258,90 @@
   </div>
 </div>
 
+<!-- Resolve Action Modal -->
+<div id="resolveModal" class="modal-backdrop" style="display:none">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="margin:0;font-size:16px;color:var(--text);font-weight:700;">Configure Visual AI Resolve Action</h3>
+      <button onclick="closeResolveModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
+      Takes a screenshot of target element, substitutes <code>{{image}}</code>, <code>{{w}}</code>, and <code>{{h}}</code> into your request, posts to your AI vision endpoint, and simulates a human Bezier click on the returned coordinates.
+    </p>
+    
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+      <button type="button" class="copy-btn" onclick="applyPreset('gemini')" style="position:static;padding:5px 10px;">Preset: Gemini Flash</button>
+      <button type="button" class="copy-btn" onclick="applyPreset('openai')" style="position:static;padding:5px 10px;">Preset: OpenAI GPT-4o</button>
+      <button type="button" class="copy-btn" onclick="applyPreset('custom')" style="position:static;padding:5px 10px;">Preset: Custom API</button>
+    </div>
+
+    <label>Target Element Selector</label>
+    <input type="text" id="resSelector" value="canvas#captcha" placeholder="e.g. canvas or #captcha-img">
+
+    <label>AI / Solver Endpoint URL</label>
+    <input type="text" id="resUrl" value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=YOUR_API_KEY" placeholder="https://api.openai.com/v1/chat/completions or Gemini URL">
+
+    <div class="row" style="margin-top:10px;">
+      <div>
+        <label>Method</label>
+        <select id="resMethod">
+          <option value="POST">POST</option>
+          <option value="GET">GET</option>
+        </select>
+      </div>
+      <div>
+        <label>Timeout (ms)</label>
+        <input type="number" id="resTimeout" value="25000">
+      </div>
+    </div>
+
+    <label>Headers (JSON)</label>
+    <textarea id="resHeaders" rows="3" style="font-family:monospace;font-size:11px;">{
+  "Content-Type": "application/json"
+}</textarea>
+
+    <label>Request Body Template (JSON with {{image}})</label>
+    <textarea id="resBody" rows="7" style="font-family:monospace;font-size:11px;">{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "Locate the target puzzle coordinates x and y within canvas width {{w}} and height {{h}}. Output strictly JSON: {\"x\": number, \"y\": number}"
+        },
+        {
+          "inline_data": {
+            "mime_type": "image/png",
+            "data": "{{image}}"
+          }
+        }
+      ]
+    }
+  ]
+}</textarea>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+      <button type="button" onclick="closeResolveModal()" style="background:var(--border);color:var(--text);border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">Cancel</button>
+      <button type="button" onclick="saveResolveAction()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;">Add Action</button>
+    </div>
+  </div>
+</div>
+
+<!-- Raw Action JSON Modal -->
+<div id="rawModal" class="modal-backdrop" style="display:none">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="margin:0;font-size:16px;color:var(--text);font-weight:700;">Add Raw Action JSON</h3>
+      <button onclick="closeRawModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">×</button>
+    </div>
+    <label>Action Object or Array of Actions (JSON)</label>
+    <textarea id="rawJsonText" rows="10" style="font-family:monospace;font-size:12px;" placeholder='{ "type": "click", "selector": "#submit-btn" }'></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+      <button type="button" onclick="closeRawModal()" style="background:var(--border);color:var(--text);border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">Cancel</button>
+      <button type="button" onclick="saveRawAction()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;">Add Actions</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let lastResponse = null
 let actions = []
@@ -288,19 +383,164 @@ function switchTab(name) {
 
 function addAction() {
   const type = document.getElementById('actionType').value
+  if (type === 'resolve') {
+    openResolveModal()
+    return
+  }
   const val = prompt(`Action: ${type}\nEnter value (selector/url/script/key/ms):`) ?? ''
-  actions.push({ type, _val: val })
+  if (val !== null && val !== '') {
+    actions.push({ type, _val: val })
+    renderActions()
+  }
+}
+
+function openResolveModal() {
+  document.getElementById('resolveModal').style.display = 'flex'
+}
+function closeResolveModal() {
+  document.getElementById('resolveModal').style.display = 'none'
+}
+function saveResolveAction() {
+  const selector = document.getElementById('resSelector').value.trim() || 'canvas#captcha'
+  const url = document.getElementById('resUrl').value.trim()
+  if (!url) {
+    alert('Please enter an AI or Solver Endpoint URL.')
+    return
+  }
+  const method = document.getElementById('resMethod').value
+  const timeout = parseInt(document.getElementById('resTimeout').value) || 25000
+  let headers = {}
+  try {
+    headers = JSON.parse(document.getElementById('resHeaders').value)
+  } catch (e) {
+    alert('Invalid JSON in Headers: ' + e.message)
+    return
+  }
+  let body = {}
+  try {
+    body = JSON.parse(document.getElementById('resBody').value)
+  } catch (e) {
+    alert('Invalid JSON in Request Body: ' + e.message)
+    return
+  }
+
+  actions.push({
+    type: 'resolve',
+    selector,
+    request: { url, method, headers, body },
+    timeout
+  })
   renderActions()
+  closeResolveModal()
+}
+
+function openRawModal() {
+  document.getElementById('rawModal').style.display = 'flex'
+}
+function closeRawModal() {
+  document.getElementById('rawModal').style.display = 'none'
+}
+function saveRawAction() {
+  const text = document.getElementById('rawJsonText').value.trim()
+  if (!text) return
+  try {
+    const parsed = JSON.parse(text)
+    if (Array.isArray(parsed)) {
+      parsed.forEach(item => actions.push({ ...item, _isRaw: true }))
+    } else {
+      actions.push({ ...parsed, _isRaw: true })
+    }
+    renderActions()
+    closeRawModal()
+    document.getElementById('rawJsonText').value = ''
+  } catch (e) {
+    alert('Invalid JSON: ' + e.message)
+  }
+}
+
+function applyPreset(preset) {
+  if (preset === 'gemini') {
+    document.getElementById('resUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=YOUR_API_KEY'
+    document.getElementById('resHeaders').value = JSON.stringify({ "Content-Type": "application/json" }, null, 2)
+    document.getElementById('resBody').value = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: "Locate the target puzzle coordinates x and y within canvas width {{w}} and height {{h}}. Output strictly JSON: {\"x\": number, \"y\": number}" },
+          { inline_data: { mime_type: "image/png", data: "{{image}}" } }
+        ]
+      }]
+    }, null, 2)
+  } else if (preset === 'openai') {
+    document.getElementById('resUrl').value = 'https://api.openai.com/v1/chat/completions'
+    document.getElementById('resHeaders').value = JSON.stringify({
+      "Content-Type": "application/json",
+      "Authorization": "Bearer YOUR_OPENAI_KEY"
+    }, null, 2)
+    document.getElementById('resBody').value = JSON.stringify({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: "Locate target coordinates x and y within width {{w}} and height {{h}}. Output strictly JSON: {\"x\": number, \"y\": number}" },
+          { type: "image_url", image_url: { url: "data:image/png;base64,{{image}}" } }
+        ]
+      }]
+    }, null, 2)
+  } else {
+    document.getElementById('resUrl').value = 'https://api.example.com/solve'
+    document.getElementById('resHeaders').value = JSON.stringify({ "Content-Type": "application/json" }, null, 2)
+    document.getElementById('resBody').value = JSON.stringify({
+      image: "{{image}}",
+      width: "{{w}}",
+      height: "{{h}}"
+    }, null, 2)
+  }
+}
+
+async function destroyCurrentSession() {
+  const sid = document.getElementById('sessionId').value.trim()
+  if (!sid) { alert('Please enter a Session ID first'); return }
+  try {
+    const res = await fetch('/session/destroy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid })
+    })
+    const d = await res.json()
+    alert(JSON.stringify(d, null, 2))
+  } catch (err) {
+    alert('Error destroying session: ' + err.message)
+  }
+}
+
+async function listActiveSessions() {
+  try {
+    const res = await fetch('/sessions')
+    const d = await res.json()
+    alert('Active Sessions:\n' + JSON.stringify(d, null, 2))
+  } catch (err) {
+    alert('Error fetching sessions: ' + err.message)
+  }
 }
 
 function renderActions() {
   const list = document.getElementById('actionList')
-  list.innerHTML = actions.map((a, i) =>
-    `<div class="action-item">
-      <span>${a.type} — ${a._val || ''}</span>
+  list.innerHTML = actions.map((a, i) => {
+    if (a.type === 'resolve') {
+      let host = 'AI Endpoint'
+      try { host = new URL(a.request?.url || '').hostname } catch(_) {}
+      return `<div class="action-item">
+        <span><strong>resolve</strong>: <code>${a.selector}</code> <span style="color:var(--accent);font-size:11px;">[${host}]</span></span>
+        <button class="action-rm" onclick="removeAction(${i})">×</button>
+      </div>`
+    }
+    const label = a._val || a.selector || a.url || a.script || JSON.stringify(a)
+    return `<div class="action-item">
+      <span><strong>${a.type}</strong> — ${label}</span>
       <button class="action-rm" onclick="removeAction(${i})">×</button>
     </div>`
-  ).join('')
+  }).join('')
 }
 
 function removeAction(i) { actions.splice(i, 1); renderActions() }
@@ -351,6 +591,18 @@ function buildRequest() {
   // Build actions
   if (actions.length) {
     req.actions = actions.map(a => {
+      if (a.type === 'resolve') {
+        return {
+          type: 'resolve',
+          selector: a.selector,
+          request: a.request,
+          timeout: a.timeout || 25000,
+        }
+      }
+      if (a._isRaw) {
+        const { _isRaw, ...clean } = a
+        return clean
+      }
       const act = { type: a.type }
       if (['click','hover','select','waitForSelector'].includes(a.type)) act.selector = a._val
       else if (a.type === 'type') { const [sel, ...rest] = a._val.split('|'); act.selector = sel; act.value = rest.join('|') }
