@@ -80,8 +80,9 @@ EXPOSE 3000
 # /app/.pw-browsers must be owned by nexus so the process can read the binary
 RUN useradd -r -s /bin/false nexus && \
     chown -R nexus:nexus /app && \
-    mkdir -p /tmp/whisper-cache && \
-    chown -R nexus:nexus /tmp/whisper-cache
+    mkdir -p /tmp/whisper-cache /tmp/.X11-unix && \
+    chmod 1777 /tmp/.X11-unix && \
+    chown -R nexus:nexus /tmp/whisper-cache /tmp/.X11-unix
 
 USER nexus
 
