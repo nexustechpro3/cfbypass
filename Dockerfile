@@ -54,38 +54,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy package files — Docker layer cache: npm install only reruns when package.json changes
 COPY package*.json ./
-
-# Install ALL deps including devDependencies (needed for tsc build)
 RUN npm ci
 
-# Copy source
 COPY . .
-
-# Build TypeScript
 RUN npm run build
-
-# Prune devDependencies after build — smaller final image
 RUN npm prune --production
 
-# Set production env AFTER build
 ENV NODE_ENV=production
 
 EXPOSE 3000
 
-# Create non-root user, fix permissions, pre-create X11 socket dir
+# Create nexus user and pre-create every /tmp path Chrome/crashpad/Xvfb will touch
 RUN useradd -r -s /bin/false nexus && \
     chown -R nexus:nexus /app && \
-    mkdir -p /tmp/whisper-cache /tmp/.X11-unix && \
-    chmod 1777 /tmp/.X11-unix && \
-    chown -R nexus:nexus /tmp/whisper-cache /tmp/.X11-unix
+    mkdir -p \
+        /tmp/whisper-cache \
+        /tmp/.X11-unix \
+        /tmp/nexus-clearance-profile \
+        /tmp/chrome-crashpad-database \
+    && chmod 1777 /tmp/.X11-unix \
+    && chown -R nexus:nexus \
+        /tmp/whisper-cache \
+        /tmp/.X11-unix \
+        /tmp/nexus-clearance-profile \
+        /tmp/chrome-crashpad-database
 
 USER nexus
 
-# Health check — start-period=60s gives Xvfb + Chrome time to start
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-# Start Xvfb virtual display first, wait for it, then start the app
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & sleep 2 && node dist/index.js"]

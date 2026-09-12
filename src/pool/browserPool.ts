@@ -42,11 +42,17 @@ const IS_LINUX = process.platform === 'linux'
 
 const LAUNCH_OPTIONS = IS_LINUX
   ? {
-    channel: 'chrome' as const,          // ADD — use real Chrome, not headless-shell
-    headless: false,                      // CHANGE — always false, Xvfb handles display
+    channel: 'chrome' as const,
+    headless: false,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-crash-reporter',                        // ADD
+      '--crash-dumps-dir=/tmp/chrome-crashpad-database', // ADD
       ...COMMON_FLAGS,
     ],
   }
@@ -55,9 +61,7 @@ const LAUNCH_OPTIONS = IS_LINUX
     headless: false,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
-    args: [
-      ...COMMON_FLAGS,
-    ],
+    args: [...COMMON_FLAGS],
   }
 
 function cleanProfileDir(dirPath: string): void {

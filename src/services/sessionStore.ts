@@ -67,6 +67,12 @@ export async function getOrCreate(
       viewport: null as null,
       permissions: PERMISSIONS,
       args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-crash-reporter',
+        '--crash-dumps-dir=/tmp/chrome-crashpad-database',
         ...COMMON_FLAGS,
       ],
       ...(proxy ? {
