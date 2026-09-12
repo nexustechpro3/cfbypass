@@ -46,12 +46,6 @@ const LAUNCH_OPTIONS = IS_LINUX
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
       ...COMMON_FLAGS,
     ],
   }

@@ -66,12 +66,6 @@ export async function getOrCreate(
       viewport: null as null,
       permissions: PERMISSIONS,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
         ...COMMON_FLAGS,
       ],
       ...(proxy ? {
