@@ -99,6 +99,23 @@ async function launch(): Promise<void> {
 
   _context = await chromium.launchPersistentContext(_currentProfileDir, LAUNCH_OPTIONS)
 
+  // Spoof WebGL renderer on Linux to avoid SwiftShader bot detection
+  if (IS_LINUX) {
+    await _context.addInitScript(() => {
+      const getParameter = WebGLRenderingContext.prototype.getParameter
+      WebGLRenderingContext.prototype.getParameter = function (parameter) {
+        if (parameter === 37445) return 'Google Inc. (NVIDIA)'
+        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)'
+        return getParameter.call(this, parameter)
+      }
+      const getParameter2 = WebGL2RenderingContext.prototype.getParameter
+      WebGL2RenderingContext.prototype.getParameter = function (parameter) {
+        if (parameter === 37445) return 'Google Inc. (NVIDIA)'
+        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)'
+        return getParameter2.call(this, parameter)
+      }
+    })
+  }
   const browser = _context.browser()
   const versionStr = browser ? browser.version() : 'Chrome/128.0.0.0'
   console.log(`[BrowserPool] Browser version: ${versionStr}`)
