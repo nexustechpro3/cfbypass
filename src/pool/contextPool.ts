@@ -33,6 +33,7 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
         }
       } : {}),
       args: [
+        ...(IS_LINUX ? ['--use-gl=swiftshader', '--enable-webgl', '--enable-webgl2'] : []),
         '--disable-save-password-bubble',
         '--disable-single-click-autofill',
         '--disable-autofill-keyboard-accessory-view',

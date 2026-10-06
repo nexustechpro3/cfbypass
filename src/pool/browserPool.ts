@@ -50,7 +50,12 @@ const LAUNCH_OPTIONS = IS_LINUX
       ...process.env,
       DISPLAY: process.env.DISPLAY || ':99',
     },
-    args: [...COMMON_FLAGS],
+    args: [
+      '--use-gl=swiftshader',
+      '--enable-webgl',
+      '--enable-webgl2',
+      ...COMMON_FLAGS,
+    ],
   }
   : {
     channel: 'chrome' as const,

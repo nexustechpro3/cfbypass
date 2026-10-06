@@ -69,7 +69,12 @@ export async function getOrCreate(
         ...process.env,
         DISPLAY: process.env.DISPLAY || ':99',
       },
-      args: [...COMMON_FLAGS],
+      args: [
+        '--use-gl=swiftshader',
+        '--enable-webgl',
+        '--enable-webgl2',
+        ...COMMON_FLAGS,
+      ],
       ...(proxy ? {
         proxy: {
           server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
