@@ -266,7 +266,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
           method: (reqConfig.method ?? 'POST') as any,
           headers: reqConfig.headers ?? { 'Content-Type': 'application/json' },
           data: body,
-          timeout: reqConfig.timeout ?? 60000,
+          timeout: reqConfig.timeout ?? 180000,
           validateStatus: s => s < 600,
         })
 
@@ -359,13 +359,13 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
         }
         const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
 
-        ;(window as any).__nexus_x__ = x
-        ;(window as any).__nexus_y__ = y
-        ;(window as any).__nexus_pageX__ = pageX
-        ;(window as any).__nexus_pageY__ = pageY
-        ;(window as any).__nexus_cid__ = cid
-        ;(window as any).__nexus_csrf__ = csrf
-        ;(window as any).__nexus_trace__ = trace
+          ; (window as any).__nexus_x__ = x
+          ; (window as any).__nexus_y__ = y
+          ; (window as any).__nexus_pageX__ = pageX
+          ; (window as any).__nexus_pageY__ = pageY
+          ; (window as any).__nexus_cid__ = cid
+          ; (window as any).__nexus_csrf__ = csrf
+          ; (window as any).__nexus_trace__ = trace
 
         return { cid, csrf }
       }, { x, y, pageX, pageY, trace }).catch(() => ({ cid: null, csrf: '' }))
