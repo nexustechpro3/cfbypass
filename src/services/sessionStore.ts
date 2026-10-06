@@ -59,21 +59,17 @@ export async function getOrCreate(
   }
 
   const tempDir = path.join(os.tmpdir(), `nexus-session-${sessionId}-${Date.now()}`)
-
   const launchOptions = IS_LINUX
     ? {
       channel: 'chrome' as const,
       headless: false,
       viewport: null as null,
       permissions: PERMISSIONS,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-crash-reporter',
-        ...COMMON_FLAGS,
-      ],
+      env: {
+        ...process.env,
+        DISPLAY: process.env.DISPLAY || ':99',
+      },
+      args: [...COMMON_FLAGS],
       ...(proxy ? {
         proxy: {
           server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
@@ -87,9 +83,7 @@ export async function getOrCreate(
       headless: false,
       viewport: null as null,
       permissions: PERMISSIONS,
-      args: [
-        ...COMMON_FLAGS,
-      ],
+      args: [...COMMON_FLAGS],
       ...(proxy ? {
         proxy: {
           server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
@@ -98,7 +92,6 @@ export async function getOrCreate(
         }
       } : {})
     }
-
   const ctx = await chromium.launchPersistentContext(tempDir, launchOptions)
   const page = ctx.pages()[0] ?? await ctx.newPage()
 
