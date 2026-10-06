@@ -7,7 +7,7 @@ import * as fs from 'fs'
 import { randomUUID } from 'crypto'
 
 const POOL_SIZE = parseInt(process.env.CONTEXT_POOL_SIZE || '1', 10)
-
+const IS_LINUX = process.platform === 'linux'
 // Registry: requestId → Page — each request owns exactly one page by UUID
 const pageRegistry = new Map<string, Page>()
 
@@ -22,22 +22,17 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
   if (proxy) {
     const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
 
-    const IS_LINUX = process.platform === 'linux'
-    const LINUX_FLAGS = IS_LINUX ? [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-crash-reporter',
-      '--noerrdialogs',
-    ] : []
-
     const ctx = await chromium.launchPersistentContext(tmpDir, {
       channel: 'chrome',
       headless: false,
       viewport: null,
+      ...(IS_LINUX ? {
+        env: {
+          ...process.env,
+          DISPLAY: process.env.DISPLAY || ':99',
+        }
+      } : {}),
       args: [
-        ...LINUX_FLAGS,
         '--disable-save-password-bubble',
         '--disable-single-click-autofill',
         '--disable-autofill-keyboard-accessory-view',

@@ -46,15 +46,11 @@ const LAUNCH_OPTIONS = IS_LINUX
     headless: false,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-crash-reporter',
-      '--noerrdialogs',
-      ...COMMON_FLAGS,
-    ],
+    env: {
+      ...process.env,
+      DISPLAY: process.env.DISPLAY || ':99',
+    },
+    args: [...COMMON_FLAGS],
   }
   : {
     channel: 'chrome' as const,
