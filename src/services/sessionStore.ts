@@ -92,6 +92,12 @@ export async function getOrCreate(
       } : {})
     }
   const ctx = await chromium.launchPersistentContext(tempDir, launchOptions)
+  // Store PID on the context for later use
+  const browserProcess = (ctx as any)._browser?._browser?._process
+    || (ctx as any)._browser?._process
+    || (ctx as any)._impl?._browser?._process
+  console.log(`[SessionStore] Browser PID: ${browserProcess?.pid}`)
+    ; (ctx as any)._chromePid = browserProcess?.pid
   const page = ctx.pages()[0] ?? await ctx.newPage()
 
   page.on('dialog', dialog => dialog.accept().catch(() => { }))

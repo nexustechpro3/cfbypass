@@ -28,7 +28,8 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
 
-      const browserPid = (page.context().browser() as any)?._browser?._process?.pid
+      const browserPid = (page.context() as any)._chromePid
+        || (page.context().browser() as any)?._browser?._process?.pid
       console.log(`[CF] Browser PID: ${browserPid}`)
 
       // Wait for window to fully render
