@@ -25,22 +25,25 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
       console.log('[CF] Could not get iframe bounding box')
       return false
     }
-
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
 
-      // Focus Chrome window first
-      execSync(`DISPLAY=${display} xdotool search --class "chrome" windowfocus --sync`)
+      const browserPid = (page.context().browser() as any)?._browser?._process?.pid
+      console.log(`[CF] Browser PID: ${browserPid}`)
 
-      const winPos = execSync(`DISPLAY=${display} xdotool getactivewindow getwindowgeometry --shell`).toString()
-      const winX = parseInt(winPos.match(/X=(-?\d+)/)?.[1] ?? '0')
-      const winY = parseInt(winPos.match(/Y=(-?\d+)/)?.[1] ?? '0')
+      // Wait for window to fully render
+      await sleep(1000)
 
-      const clickX = Math.round((winX < 0 ? 0 : winX) + box.x + 30)
-      const clickY = Math.round((winY < 0 ? 0 : winY) + 85 + box.y + box.height / 2)
+      const winInfo = execSync(`DISPLAY=${display} xdotool search --pid ${browserPid} getwindowgeometry 2>/dev/null | head -4`).toString()
+      console.log(`[CF] Window info: ${winInfo}`)
 
-      console.log(`[CF] winX=${winX}, winY=${winY}`)
-      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY}`)
+      const winX = parseInt(winInfo.match(/Position: (-?\d+),/)?.[1] ?? '10')
+      const winY = parseInt(winInfo.match(/Position: -?\d+,(-?\d+)/)?.[1] ?? '10')
+
+      const clickX = Math.round(winX + box.x + 30)
+      const clickY = Math.round(winY + 85 + box.y + box.height / 2)
+
+      console.log(`[CF] Window at: ${winX},${winY} | Clicking at: ${clickX}, ${clickY}`)
       execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
       return true
     }
