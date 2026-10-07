@@ -28,14 +28,16 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
 
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
-      const windowId = execSync(`DISPLAY=${display} xdotool getactivewindow`).toString().trim()
+
+      // Get Chrome window ID specifically, not just active window
+      const windowId = execSync(`DISPLAY=${display} xdotool search --onlyvisible --class "chrome" | tail -1`).toString().trim()
 
       const clickX = Math.round(box.x + 30)
       const clickY = Math.round(box.y + box.height / 2 + 85)
 
       console.log(`[CF] iframe box: x=${box.x}, y=${box.y}, w=${box.width}, h=${box.height}`)
       console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY} on window ${windowId}`)
-      execSync(`DISPLAY=${display} xdotool mousemove --window ${windowId} ${clickX} ${clickY} click 1`)
+      execSync(`DISPLAY=${display} xdotool windowfocus ${windowId} mousemove --window ${windowId} ${clickX} ${clickY} click 1`)
       return true
     }
 
