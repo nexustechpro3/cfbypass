@@ -9,34 +9,21 @@ import { execSync } from 'child_process'
 
 const IS_LINUX = process.platform === 'linux'
 
+async function hasTurnstileIframe(page: Page): Promise<boolean> {
+  return page.$('iframe[src*="challenges.cloudflare.com"]').then(el => !!el).catch(() => false)
+}
+
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   try {
     await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: 15000 })
     await sleep(3000)
+    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
+    console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
     const frame = await iframeEl?.contentFrame()
     if (!frame) { console.log('[CF] No contentFrame'); return false }
-    await frame.waitForSelector(
-      'input[type="checkbox"]:not([disabled]), label[for="cf-turnstile-response"]',
-      { timeout: 30000, state: 'visible' }
-    )
+    await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: 30000, state: 'visible' })
     await sleep(1000)
-
-    for (let i = 0; i < 2; i++) {
-      try {
-        const checkbox = frame.locator('input[type="checkbox"]').first()
-        const label = frame.locator('label[for="cf-turnstile-response"]').first()
-        const target = await checkbox.isVisible().catch(() => false) ? checkbox : label
-        await target.click()
-        console.log(`[CF] Clicked via contentFrame (attempt ${i + 1})`)
-        return true
-      } catch {
-        console.log(`[CF] contentFrame click attempt ${i + 1} failed`)
-        if (i === 0) await sleep(6000)
-      }
-    }
-    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
-    console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     for (let i = 0; i < 2; i++) {
       try {
         await frame.locator('input[type="checkbox"]').click()
@@ -47,9 +34,9 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
         if (i === 0) await sleep(6000)
       }
     }
-    console.log('[CF] contentFrame exhausted, falling back')
+    console.log('[CF] contentFrame exhausted, falling back to xdotool')
     const box = await page.locator('iframe[src*="challenges.cloudflare.com"]').boundingBox()
-    if (!box) return false
+    if (!box) { console.log('[CF] No bounding box'); return false }
     if (!IS_LINUX) {
       const x = box.x + 30
       const y = box.y + box.height / 2
@@ -79,47 +66,40 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
 async function attemptCFSolve(page: Page): Promise<string | null> {
   const CF_TITLES = ['just a moment', 'checking your browser', 'verifying you are human', 'security check', 'please wait', 'attention required']
   const isCF = (title: string) => CF_TITLES.some(t => title.toLowerCase().includes(t))
-
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const getClearance = () => page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
+  for (let attempt = 0; attempt < 5; attempt++) {
     const title = await page.title().catch(() => '')
     const isChallenge = isCF(title)
-    console.log(`[CF] Attempt ${attempt + 1} — title: "${title}", isChallenge: ${isChallenge}`)
-
-    if (!isChallenge) return page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
-
+    const hasWidget = await hasTurnstileIframe(page)
+    console.log(`[CF] Attempt ${attempt + 1} — title: "${title}", isChallenge: ${isChallenge}, hasWidget: ${hasWidget}`)
+    if (!isChallenge && !hasWidget) return getClearance()
     const html = await page.content().catch(() => '')
     const cType = html.match(/cType:\s*'([^']+)'/)?.[1] ?? 'unknown'
     console.log(`[CF] cType: ${cType}`)
-
-    if (cType === 'managed' || cType === 'interactive' || isChallenge) {
+    if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
       await clickTurnstileCheckbox(page)
       await sleep(5000)
       const cleared = await waitForClearance(page, 30000)
       if (cleared) return cleared
-      const newTitle = await page.title().catch(() => '')
-      if (!isCF(newTitle)) return page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
+      const stillHasWidget = await hasTurnstileIframe(page)
+      if (!isCF(await page.title().catch(() => '')) && !stillHasWidget) return getClearance()
     } else {
       await waitForCF(page, 30000)
-      const clearance = await page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
+      const clearance = await getClearance()
       if (clearance) return clearance
     }
-
-    if (attempt < 2) await sleep(2000)
+    if (attempt < 4) await sleep(2000)
   }
-
-  return page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
+  return getClearance()
 }
 
 export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult> {
   const start = Date.now()
   const mode = req.mode ?? 'cloudflare'
-
   return withSessionOrCtx(req, async (ctx, page, requestId, isSession) => {
     const intercepted: Record<string, unknown> = {}
     const returned: Record<string, unknown> = {}
-
     if (req.setCookies?.length) await ctx.addCookies(toPwCookies(req.url, req.setCookies))
-
     if (req.intercept?.length) {
       page.on('response', async (response: Response) => {
         for (const rule of req.intercept!) {
@@ -135,7 +115,6 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
         }
       })
     }
-
     if (req.login) {
       const { loginUrl, usernameSelector, passwordSelector, submitSelector, username, password, waitAfterLogin } = req.login
       await page.goto(loginUrl, { waitUntil: 'load', timeout: global.timeOut })
@@ -149,13 +128,12 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
         await page.waitForSelector(passwordSelector, { timeout: 10000 })
         await page.fill(passwordSelector, password)
       }
+      await attemptCFSolve(page) // catch inline widget after filling form
       if (submitSelector) await page.click(submitSelector)
       if (waitAfterLogin) await sleep(waitAfterLogin)
     }
-
     const currentUrl = page.url()
     let cfClearance: string | null = null
-
     const needsNavigation = !currentUrl || currentUrl === 'about:blank' || (currentUrl !== req.url && !currentUrl.startsWith(req.url))
     if (needsNavigation) {
       await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
@@ -163,17 +141,14 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       cfClearance = await attemptCFSolve(page)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
     }
-
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
     if (req.actions?.length) await runActions(page, req.actions, returned)
-
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
     const title = await page.title().catch(() => '')
     const finalUrl = page.url()
     const source = req.getPageSource ? await page.content().catch(() => null) : null
     const token = req.siteKey || mode === 'turnstile-max' ? await waitForToken(page, 5000) : null
-
     return {
       token,
       cf_clearance: cfClearance,
