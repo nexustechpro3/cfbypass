@@ -13,9 +13,8 @@ const IS_LINUX = process.platform === 'linux'
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   try {
     await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: 15000 })
-    await sleep(500)
+    await sleep(3000)
 
-    // Log what's on the page
     const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
     console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
 
@@ -25,24 +24,38 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
       console.log('[CF] Could not get iframe bounding box')
       return false
     }
+
     if (IS_LINUX) {
+      try {
+        const iframeElement = await page.$('iframe[src*="challenges.cloudflare.com"]')
+        const frame = await iframeElement?.contentFrame()
+        if (frame) {
+          await frame.waitForSelector('input[type="checkbox"]', { timeout: 5000 })
+          await frame.locator('input[type="checkbox"]').click()
+          console.log('[CF] Clicked via contentFrame')
+          return true
+        }
+      } catch {
+        console.log('[CF] contentFrame click failed, falling back to xdotool')
+      }
+
       const display = process.env.DISPLAY || ':99'
       const windowId = (page.context() as any)._windowId
       console.log(`[CF] Using window ID: ${windowId}`)
 
       const winInfo = execSync(`DISPLAY=${display} xdotool getwindowgeometry ${windowId} 2>/dev/null`).toString()
-      const winX = parseInt(winInfo.match(/Position: (-?\d+),/)?.[1] ?? '10')
-      const winY = parseInt(winInfo.match(/Position: -?\d+,(-?\d+)/)?.[1] ?? '10')
+      const posMatch = winInfo.match(/Position:\s*(-?\d+),(-?\d+)/)
+      const winX = parseInt(posMatch?.[1] ?? '0')
+      const winY = parseInt(posMatch?.[2] ?? '0')
 
       const clickX = Math.round(winX + box.x + 30)
       const clickY = Math.round(winY + 85 + box.y + box.height / 2)
 
-      console.log(`[CF] Window at: ${winX},${winY} | Clicking at: ${clickX}, ${clickY}`)
+      console.log(`[CF] Window at: ${winX},${winY} | Clicking at: ${clickX},${clickY}`)
       execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
       return true
     }
 
-    // Windows — use Playwright mouse
     const x = box.x + 30
     const y = box.y + box.height / 2
     await page.mouse.move(x, y, { steps: 10 })
