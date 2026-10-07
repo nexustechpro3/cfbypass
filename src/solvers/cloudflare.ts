@@ -16,8 +16,25 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
     const frame = await iframeEl?.contentFrame()
     if (!frame) { console.log('[CF] No contentFrame'); return false }
-    await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: 15000, state: 'visible' })
+    await frame.waitForSelector(
+      'input[type="checkbox"]:not([disabled]), label[for="cf-turnstile-response"]',
+      { timeout: 30000, state: 'visible' }
+    )
     await sleep(1000)
+
+    for (let i = 0; i < 2; i++) {
+      try {
+        const checkbox = frame.locator('input[type="checkbox"]').first()
+        const label = frame.locator('label[for="cf-turnstile-response"]').first()
+        const target = await checkbox.isVisible().catch(() => false) ? checkbox : label
+        await target.click()
+        console.log(`[CF] Clicked via contentFrame (attempt ${i + 1})`)
+        return true
+      } catch {
+        console.log(`[CF] contentFrame click attempt ${i + 1} failed`)
+        if (i === 0) await sleep(6000)
+      }
+    }
     const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
     console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     for (let i = 0; i < 2; i++) {
