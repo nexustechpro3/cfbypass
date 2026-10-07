@@ -13,7 +13,11 @@ const IS_LINUX = process.platform === 'linux'
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   try {
     await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: 15000 })
-    await sleep(3000)
+    await sleep(500)
+
+    // Log what's on the page
+    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
+    console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
 
     const iframe = page.locator('iframe[src*="challenges.cloudflare.com"]')
     const box = await iframe.boundingBox()
@@ -24,19 +28,14 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
 
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
-      const winPos = execSync(`DISPLAY=${display} xdotool getactivewindow getwindowgeometry --shell`).toString()
-      const winX = parseInt(winPos.match(/X=(-?\d+)/)?.[1] ?? '0')
-      const winY = parseInt(winPos.match(/Y=(-?\d+)/)?.[1] ?? '0')
-      console.log(`[CF] Window geometry: ${winPos.trim()}`)
+      const windowId = execSync(`DISPLAY=${display} xdotool getactivewindow`).toString().trim()
+
+      const clickX = Math.round(box.x + 30)
+      const clickY = Math.round(box.y + box.height / 2 + 85)
+
       console.log(`[CF] iframe box: x=${box.x}, y=${box.y}, w=${box.width}, h=${box.height}`)
-      console.log(`[CF] winX=${winX}, winY=${winY}`)
-
-      const offsetY = winY < 0 ? 0 : winY
-      const clickX = Math.round((winX < 0 ? 0 : winX) + box.x + 30)
-      const clickY = Math.round(offsetY + 85 + box.y + box.height / 2)
-
-      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY}`)
-      execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
+      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY} on window ${windowId}`)
+      execSync(`DISPLAY=${display} xdotool mousemove --window ${windowId} ${clickX} ${clickY} click 1`)
       return true
     }
 
@@ -76,8 +75,6 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     console.log(`[CF] cType: ${cType ?? 'unknown'}`)
 
     if (cType === 'managed' || cType === 'interactive' || isCFChallenge) {
-      const autoCleared = await waitForClearance(page, 20000)
-      if (autoCleared) return autoCleared
       await clickTurnstileCheckbox(page)
       await sleep(3000)
       const cleared = await waitForClearance(page, 30000)
@@ -157,7 +154,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
 
     if (needsNavigation) {
       await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
-      await sleep(6000)
+      await sleep(3000)
       cfClearance = await attemptCFSolve(page)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
     }
