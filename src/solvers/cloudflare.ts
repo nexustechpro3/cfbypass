@@ -6,65 +6,46 @@ import {
   toPwCookies, fromPwCookies, sleep, buildProxyUrl, registerPage,
 } from './base'
 
+import { execSync } from 'child_process'
+
+const IS_LINUX = process.platform === 'linux'
+
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   try {
-    // Wait longer — Turnstile initializes asynchronously
-    await sleep(4000)
+    await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: 15000 })
+    await sleep(3000)
 
-    // Try native locator first — patchright pierces shadow DOM
-    try {
-      await page.locator('label.pgnB1').click({ timeout: 8000 })
-      console.log('[CF] Clicked label.pgnB1 via locator')
-      return true
-    } catch (_) { }
+    const iframe = page.locator('iframe[src*="challenges.cloudflare.com"]')
+    const box = await iframe.boundingBox()
+    if (!box) {
+      console.log('[CF] Could not get iframe bounding box')
+      return false
+    }
 
-    // Fallback: evaluate after waiting for element to exist
-    const clicked = await page.evaluate(async () => {
-      // Wait for element to appear (up to 8s)
-      const deadline = Date.now() + 8000
-      while (Date.now() < deadline) {
-        function findInShadow(root: Document | ShadowRoot): HTMLElement | null {
-          const label = root.querySelector<HTMLElement>('label.pgnB1')
-          if (label) return label
-          for (const el of root.querySelectorAll('*')) {
-            const shadow = (el as HTMLElement).shadowRoot
-            if (shadow) {
-              const found = findInShadow(shadow)
-              if (found) return found
-            }
-          }
-          return null
-        }
-        const el = findInShadow(document)
-        if (el) {
-          const rect = el.getBoundingClientRect()
-          if (rect.width > 0 && rect.height > 0) {
-            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-          }
-          el.click()
-          return { clicked: true }
-        }
-        await new Promise(r => setTimeout(r, 200))
-      }
-      return null
-    }).catch(() => null)
+    if (IS_LINUX) {
+      const display = process.env.DISPLAY || ':99'
+      const winPos = execSync(`DISPLAY=${display} xdotool getactivewindow getwindowgeometry --shell`).toString()
+      const winX = parseInt(winPos.match(/X=(-?\d+)/)?.[1] ?? '0')
+      const winY = parseInt(winPos.match(/Y=(-?\d+)/)?.[1] ?? '0')
 
-    if (clicked && 'clicked' in (clicked as object)) {
-      console.log('[CF] Clicked label directly via evaluate')
+      const offsetY = winY < 0 ? 0 : winY
+      const clickX = Math.round((winX < 0 ? 0 : winX) + box.x + 30)
+      const clickY = Math.round(offsetY + 85 + box.y + box.height / 2)
+
+      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY}`)
+      execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
       return true
     }
 
-    if (clicked && 'x' in (clicked as object)) {
-      const { x, y } = clicked as { x: number; y: number }
-      await page.mouse.move(x, y, { steps: 10 })
-      await sleep(Math.floor(Math.random() * 200 + 100))
-      await page.mouse.click(x, y)
-      console.log(`[CF] Clicked label at (${x.toFixed(0)}, ${y.toFixed(0)})`)
-      return true
-    }
+    // Windows — use Playwright mouse
+    const x = box.x + 30
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y, { steps: 10 })
+    await sleep(150)
+    await page.mouse.click(x, y)
+    console.log(`[CF] Clicked at (${x.toFixed(0)}, ${y.toFixed(0)})`)
+    return true
 
-    console.log('[CF] All click attempts failed — widget may not have initialized')
-    return false
   } catch (err) {
     console.log('[CF] Checkbox click failed:', (err as Error).message)
     return false
