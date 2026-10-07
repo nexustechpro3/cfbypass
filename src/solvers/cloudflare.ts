@@ -28,16 +28,21 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
 
-      const browserPid = (page.context() as any)._chromePid
-        || (page.context().browser() as any)?._browser?._process?.pid
-      console.log(`[CF] Browser PID: ${browserPid}`)
+      // Get window ID via CDP target info
+      const client = await page.context().newCDPSession(page)
+      const { targetInfo } = await client.send('Target.getTargetInfo')
+      console.log(`[CF] Target ID: ${targetInfo.targetId}`)
+      await client.detach()
 
-      // Wait for window to fully render
-      await sleep(1000)
+      // Find window by getting all chrome windows and matching by title
+      const pageTitle = await page.title()
+      const windowId = execSync(
+        `DISPLAY=${display} xdotool search --name "${pageTitle.substring(0, 20)}" 2>/dev/null | head -1`
+      ).toString().trim()
 
-      const winInfo = execSync(`DISPLAY=${display} xdotool search --pid ${browserPid} getwindowgeometry 2>/dev/null | head -4`).toString()
-      console.log(`[CF] Window info: ${winInfo}`)
+      console.log(`[CF] Window ID by title: ${windowId}`)
 
+      const winInfo = execSync(`DISPLAY=${display} xdotool getwindowgeometry ${windowId} 2>/dev/null`).toString()
       const winX = parseInt(winInfo.match(/Position: (-?\d+),/)?.[1] ?? '10')
       const winY = parseInt(winInfo.match(/Position: -?\d+,(-?\d+)/)?.[1] ?? '10')
 
