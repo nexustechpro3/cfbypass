@@ -27,6 +27,8 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
       const winPos = execSync(`DISPLAY=${display} xdotool getactivewindow getwindowgeometry --shell`).toString()
       const winX = parseInt(winPos.match(/X=(-?\d+)/)?.[1] ?? '0')
       const winY = parseInt(winPos.match(/Y=(-?\d+)/)?.[1] ?? '0')
+      console.log(`[CF] Window geometry: ${winPos}`)
+      console.log(`[CF] iframe box: ${JSON.stringify(box)}`)
 
       const offsetY = winY < 0 ? 0 : winY
       const clickX = Math.round((winX < 0 ? 0 : winX) + box.x + 30)
