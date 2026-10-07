@@ -27,20 +27,8 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     }
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
-
-      // Get window ID via CDP target info
-      const client = await page.context().newCDPSession(page)
-      const { targetInfo } = await client.send('Target.getTargetInfo')
-      console.log(`[CF] Target ID: ${targetInfo.targetId}`)
-      await client.detach()
-
-      // Find window by getting all chrome windows and matching by title
-      const pageTitle = await page.title()
-      const windowId = execSync(
-        `DISPLAY=${display} xdotool search --name "${pageTitle.substring(0, 20)}" 2>/dev/null | head -1`
-      ).toString().trim()
-
-      console.log(`[CF] Window ID by title: ${windowId}`)
+      const windowId = (page.context() as any)._windowId
+      console.log(`[CF] Using window ID: ${windowId}`)
 
       const winInfo = execSync(`DISPLAY=${display} xdotool getwindowgeometry ${windowId} 2>/dev/null`).toString()
       const winX = parseInt(winInfo.match(/Position: (-?\d+),/)?.[1] ?? '10')

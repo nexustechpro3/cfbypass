@@ -92,12 +92,16 @@ export async function getOrCreate(
       } : {})
     }
   const ctx = await chromium.launchPersistentContext(tempDir, launchOptions)
-  // Store PID on the context for later use
-  const browserProcess = (ctx as any)._browser?._browser?._process
-    || (ctx as any)._browser?._process
-    || (ctx as any)._impl?._browser?._process
-  console.log(`[SessionStore] Browser PID: ${browserProcess?.pid}`)
-    ; (ctx as any)._chromePid = browserProcess?.pid
+  // Capture this browser's window ID immediately after launch
+  if (IS_LINUX) {
+    await new Promise(r => setTimeout(r, 2000)) // wait for window to appear
+    const display = process.env.DISPLAY || ':99'
+    const { execSync } = require('child_process')
+    const allWindows = execSync(`DISPLAY=${display} xdotool search --class "chrome"`).toString().trim().split('\n')
+      // Store all current window IDs on the context so cloudflare.ts can find the NEW one
+      ; (ctx as any)._windowId = allWindows[allWindows.length - 1]
+    console.log(`[SessionStore] Captured window ID: ${(ctx as any)._windowId}`)
+  }
   const page = ctx.pages()[0] ?? await ctx.newPage()
 
   page.on('dialog', dialog => dialog.accept().catch(() => { }))
