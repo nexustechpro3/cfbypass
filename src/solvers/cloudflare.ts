@@ -29,15 +29,19 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     if (IS_LINUX) {
       const display = process.env.DISPLAY || ':99'
 
-      // Get Chrome window ID specifically, not just active window
-      const windowId = execSync(`DISPLAY=${display} xdotool search --onlyvisible --class "chrome" | tail -1`).toString().trim()
+      // Focus Chrome window first
+      execSync(`DISPLAY=${display} xdotool search --class "chrome" windowfocus --sync`)
 
-      const clickX = Math.round(box.x + 30)
-      const clickY = Math.round(box.y + box.height / 2 + 85)
+      const winPos = execSync(`DISPLAY=${display} xdotool getactivewindow getwindowgeometry --shell`).toString()
+      const winX = parseInt(winPos.match(/X=(-?\d+)/)?.[1] ?? '0')
+      const winY = parseInt(winPos.match(/Y=(-?\d+)/)?.[1] ?? '0')
 
-      console.log(`[CF] iframe box: x=${box.x}, y=${box.y}, w=${box.width}, h=${box.height}`)
-      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY} on window ${windowId}`)
-      execSync(`DISPLAY=${display} xdotool windowfocus ${windowId} mousemove --window ${windowId} ${clickX} ${clickY} click 1`)
+      const clickX = Math.round((winX < 0 ? 0 : winX) + box.x + 30)
+      const clickY = Math.round((winY < 0 ? 0 : winY) + 85 + box.y + box.height / 2)
+
+      console.log(`[CF] winX=${winX}, winY=${winY}`)
+      console.log(`[CF] xdotool clicking at: ${clickX}, ${clickY}`)
+      execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
       return true
     }
 
