@@ -20,6 +20,8 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
     console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
+    await iframeEl?.scrollIntoViewIfNeeded()
+    await sleep(1000)
     const frame = await iframeEl?.contentFrame()
     if (!frame) { console.log('[CF] No contentFrame'); return false }
     await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: 30000, state: 'visible' })
@@ -140,6 +142,11 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       await sleep(3000)
       cfClearance = await attemptCFSolve(page)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
+      // check again after networkidle in case inline widget appeared after load
+      if (await hasTurnstileIframe(page)) {
+        await sleep(3000) // wait for any lazy content to finish shifting the layout
+        cfClearance = await attemptCFSolve(page)
+      }
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
     if (req.actions?.length) await runActions(page, req.actions, returned)
