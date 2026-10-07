@@ -92,6 +92,8 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     console.log(`[CF] cType: ${cType ?? 'unknown'}`)
 
     if (cType === 'managed' || cType === 'interactive' || isCFChallenge) {
+      const autoCleared = await waitForClearance(page, 20000)
+      if (autoCleared) return autoCleared
       await clickTurnstileCheckbox(page)
       await sleep(3000)
       const cleared = await waitForClearance(page, 30000)
@@ -171,7 +173,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
 
     if (needsNavigation) {
       await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
-      await sleep(3000)
+      await sleep(6000)
       cfClearance = await attemptCFSolve(page)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
     }
