@@ -61,7 +61,6 @@ export async function getOrCreate(
   const tempDir = path.join(os.tmpdir(), `nexus-session-${sessionId}-${Date.now()}`)
   const launchOptions = IS_LINUX
     ? {
-      channel: 'chromium' as const,
       headless: false,
       viewport: null as null,
       permissions: PERMISSIONS,
@@ -70,9 +69,6 @@ export async function getOrCreate(
         DISPLAY: process.env.DISPLAY || ':99',
       },
       args: [
-        '--use-gl=swiftshader',
-        '--enable-webgl',
-        '--enable-webgl2',
         ...COMMON_FLAGS,
       ],
       ...(proxy ? {
