@@ -61,6 +61,7 @@ export async function getOrCreate(
   const tempDir = path.join(os.tmpdir(), `nexus-session-${sessionId}-${Date.now()}`)
   const launchOptions = IS_LINUX
     ? {
+      channel: 'chrome' as const,
       headless: false,
       viewport: null as null,
       env: {

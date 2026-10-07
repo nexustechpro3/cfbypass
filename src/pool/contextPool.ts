@@ -23,7 +23,7 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
     const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
 
     const ctx = await chromium.launchPersistentContext(tmpDir, {
-      ...(IS_LINUX ? {} : { channel: 'chrome' }),
+      channel: 'chrome',
       headless: false,
       viewport: null,
       ...(IS_LINUX ? {

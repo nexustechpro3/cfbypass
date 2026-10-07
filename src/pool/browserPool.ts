@@ -29,6 +29,8 @@ const COMMON_FLAGS = [
   '--allow-insecure-localhost',
   '--no-default-browser-check',
   '--use-fake-ui-for-media-stream',
+  '--ignore-certificate-errors',
+  '--ignore-ssl-errors',
 ]
 
 const PERMISSIONS = [
@@ -42,17 +44,18 @@ const IS_LINUX = process.platform === 'linux'
 
 const LAUNCH_OPTIONS = IS_LINUX
   ? {
+    channel: 'chrome' as const,
     headless: false,
     viewport: null as null,
     env: {
       ...process.env,
       DISPLAY: process.env.DISPLAY || ':99',
     },
-    args: [],
   }
   : {
     channel: 'chrome' as const,
     headless: false,
+    ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [...COMMON_FLAGS],
