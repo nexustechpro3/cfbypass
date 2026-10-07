@@ -59,37 +59,22 @@ export async function getOrCreate(
   }
 
   const tempDir = path.join(os.tmpdir(), `nexus-session-${sessionId}-${Date.now()}`)
-  const launchOptions = IS_LINUX
-    ? {
-      headless: false,
-      viewport: null as null,
-      env: {
-        ...process.env,
-        DISPLAY: process.env.DISPLAY || ':99',
-      },
-      args: [],
-      ...(proxy ? {
-        proxy: {
-          server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
-          ...(proxy.username ? { username: proxy.username } : {}),
-          ...(proxy.password ? { password: proxy.password } : {}),
-        }
-      } : {})
-    }
-    : {
-      channel: 'chrome' as const,
-      headless: false,
-      viewport: null as null,
-      permissions: PERMISSIONS,
-      args: [...COMMON_FLAGS],
-      ...(proxy ? {
-        proxy: {
-          server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
-          ...(proxy.username ? { username: proxy.username } : {}),
-          ...(proxy.password ? { password: proxy.password } : {}),
-        }
-      } : {})
-    }
+  const launchOptions = {
+    channel: 'chrome' as const,
+    headless: false,
+    ignoreHTTPSErrors: true,
+    viewport: null as null,
+    permissions: PERMISSIONS as unknown as string[],
+    args: [...COMMON_FLAGS],
+    ...(IS_LINUX ? { env: { ...process.env, DISPLAY: process.env.DISPLAY || ':99' } } : {}),
+    ...(proxy ? {
+      proxy: {
+        server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
+        ...(proxy.username ? { username: proxy.username } : {}),
+        ...(proxy.password ? { password: proxy.password } : {}),
+      }
+    } : {})
+  }
   const ctx = await chromium.launchPersistentContext(tempDir, launchOptions)
   // Capture this browser's window ID immediately after launch
   if (IS_LINUX) {

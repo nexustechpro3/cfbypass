@@ -44,8 +44,12 @@ const IS_LINUX = process.platform === 'linux'
 
 const LAUNCH_OPTIONS = IS_LINUX
   ? {
+    channel: 'chrome' as const,
     headless: false,
+    ignoreHTTPSErrors: true,
     viewport: null as null,
+    permissions: PERMISSIONS as unknown as string[],
+    args: [...COMMON_FLAGS],
     env: {
       ...process.env,
       DISPLAY: process.env.DISPLAY || ':99',
