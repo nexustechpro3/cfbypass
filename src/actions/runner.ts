@@ -204,8 +204,13 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
       const maxLoops = 10
       for (let _loop = 0; _loop < maxLoops; _loop++) {
         await page.waitForSelector(selector, { timeout }).catch(() => { })
-        const stillExists = await page.$(selector).then(el => !!el).catch(() => false)
-        if (!stillExists) { console.log(`[Actions] resolve: no canvas — done after ${_loop} solve(s)`); break }
+        const isVisible = await page.evaluate((sel) => {
+          const el = document.querySelector(sel)
+          if (!el) return false
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden' && window.getComputedStyle(el).display !== 'none'
+        }, selector).catch(() => false)
+        if (!isVisible) { console.log(`[Actions] resolve: canvas gone — done after ${_loop} solve(s)`); break }
 
         // 1. Extract element image (canvas toDataURL or element screenshot) & dimensions
         const canvasData = await page.evaluate((sel) => {
@@ -415,12 +420,8 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
         }
         const key = action.name ?? 'resolve'
         returned[key] = result
-        // Wait for canvas to disappear before looping again
-        await page.waitForFunction(
-          (sel: string) => !document.querySelector(sel),
-          selector,
-          { timeout: 5000 }
-        ).catch(() => { })
+        // Wait briefly for page to react, then check visibility on next iteration
+        await sleep(1500)
       } // end loop
       break
     }
