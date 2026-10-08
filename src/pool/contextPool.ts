@@ -26,7 +26,6 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
       channel: 'chrome' as const,
       headless: false,
       viewport: null,
-      ignoreHTTPSErrors: true,
       ...(IS_LINUX ? {
         env: {
           ...process.env,
