@@ -1,5 +1,6 @@
 import { BrowserContext, chromium, Page } from 'patchright'
-import { getPersistentContext } from './browserPool'
+import { getPersistentContext, LAUNCH_OPTIONS } from './browserPool'
+import { HEADLESS } from '../constants'
 import type { ProxyConfig } from '../types'
 import * as path from 'path'
 import * as os from 'os'
@@ -7,7 +8,6 @@ import * as fs from 'fs'
 import { randomUUID } from 'crypto'
 
 const POOL_SIZE = parseInt(process.env.CONTEXT_POOL_SIZE || '1', 10)
-const IS_LINUX = process.platform === 'linux'
 // Registry: requestId → Page — each request owns exactly one page by UUID
 const pageRegistry = new Map<string, Page>()
 
@@ -21,30 +21,14 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
 
   if (proxy) {
     const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
-
     const ctx = await chromium.launchPersistentContext(tmpDir, {
-      channel: 'chrome' as const,
-      headless: false,
-      viewport: null,
-      ignoreHTTPSErrors: true,
-      ...(IS_LINUX ? {
-        env: {
-          ...process.env,
-          DISPLAY: process.env.DISPLAY || ':99',
-        }
-      } : {}),
-      args: IS_LINUX ? [] : [
-        '--disable-save-password-bubble',
-        '--disable-single-click-autofill',
-        '--disable-autofill-keyboard-accessory-view',
-        '--password-store=basic',
-        '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,PasswordManager',
-      ],
+      ...LAUNCH_OPTIONS,
+      headless: HEADLESS,
       proxy: {
         server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
         ...(proxy.username ? { username: proxy.username } : {}),
         ...(proxy.password ? { password: proxy.password } : {}),
-      }
+      },
     })
     return { ctx, requestId }
   }

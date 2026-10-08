@@ -1,5 +1,6 @@
 import { chromium, BrowserContext } from 'patchright'
 import { buildHeaderProfile } from '../headers/chrome128'
+import { HEADLESS } from '../constants'
 import * as path from 'path'
 import * as os from 'os'
 
@@ -42,10 +43,10 @@ const PERMISSIONS = [
 
 const IS_LINUX = process.platform === 'linux'
 
-const LAUNCH_OPTIONS = IS_LINUX
+export const LAUNCH_OPTIONS = IS_LINUX
   ? {
     channel: 'chrome' as const,
-    headless: false,
+    headless: HEADLESS,
     ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
@@ -57,7 +58,7 @@ const LAUNCH_OPTIONS = IS_LINUX
   }
   : {
     channel: 'chrome' as const,
-    headless: false,
+    headless: HEADLESS,
     ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
