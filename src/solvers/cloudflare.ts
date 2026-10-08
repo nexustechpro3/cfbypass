@@ -1,10 +1,7 @@
 import { Page, Response } from 'patchright'
 import type { BypassRequest, BypassResult } from '../types'
 import { runActions } from '../actions/runner'
-import {
-  withSessionOrCtx, waitForClearance, waitForCF, waitForToken,
-  toPwCookies, fromPwCookies, sleep, buildProxyUrl,
-} from './base'
+import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
 import { execSync } from 'child_process'
 
 const IS_LINUX = process.platform === 'linux'
@@ -14,18 +11,16 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
 }
 
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
+  const t = global.timeOut
   try {
-    await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: 15000 })
-    await sleep(3000)
+    await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: t })
     const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
     console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
     await iframeEl?.scrollIntoViewIfNeeded()
-    await sleep(1000)
     const frame = await iframeEl?.contentFrame()
     if (!frame) { console.log('[CF] No contentFrame'); return false }
-    await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: 30000, state: 'visible' })
-    await sleep(1000)
+    await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' })
     for (let i = 0; i < 2; i++) {
       try {
         await frame.locator('input[type="checkbox"]').click()
@@ -33,7 +28,8 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
         return true
       } catch {
         console.log(`[CF] contentFrame click attempt ${i + 1} failed`)
-        if (i === 0) await sleep(6000)
+        // Wait for CF to re-enable the checkbox before retrying
+        if (i === 0) await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' }).catch(() => sleep(6000))
       }
     }
     console.log('[CF] contentFrame exhausted, falling back to xdotool')
@@ -66,6 +62,7 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
 }
 
 async function attemptCFSolve(page: Page): Promise<string | null> {
+  const t = global.timeOut
   const CF_TITLES = ['just a moment', 'checking your browser', 'verifying you are human', 'security check', 'please wait', 'attention required']
   const isCF = (title: string) => CF_TITLES.some(t => title.toLowerCase().includes(t))
   const getClearance = () => page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
@@ -80,13 +77,12 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     console.log(`[CF] cType: ${cType}`)
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
       await clickTurnstileCheckbox(page)
-      await sleep(5000)
-      const cleared = await waitForClearance(page, 30000)
+      const cleared = await waitForClearance(page, t)
       if (cleared) return cleared
       const stillHasWidget = await hasTurnstileIframe(page)
       if (!isCF(await page.title().catch(() => '')) && !stillHasWidget) return getClearance()
     } else {
-      await waitForCF(page, 30000)
+      await waitForCF(page, t)
       const clearance = await getClearance()
       if (clearance) return clearance
     }
@@ -109,10 +105,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
           try {
             if (rule.type === 'json') intercepted[rule.url] = await response.json().catch(() => null)
             else if (rule.type === 'text') intercepted[rule.url] = await response.text().catch(() => null)
-            else {
-              const buf = await response.body().catch(() => null)
-              intercepted[rule.url] = buf ? buf.toString('base64') : null
-            }
+            else { const buf = await response.body().catch(() => null); intercepted[rule.url] = buf ? buf.toString('base64') : null }
           } catch { }
         }
       })
@@ -122,15 +115,9 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       await page.goto(loginUrl, { waitUntil: 'load', timeout: global.timeOut })
       await sleep(2000)
       await attemptCFSolve(page)
-      if (usernameSelector && username) {
-        await page.waitForSelector(usernameSelector, { timeout: 10000 })
-        await page.fill(usernameSelector, username)
-      }
-      if (passwordSelector && password) {
-        await page.waitForSelector(passwordSelector, { timeout: 10000 })
-        await page.fill(passwordSelector, password)
-      }
-      await attemptCFSolve(page) // catch inline widget after filling form
+      if (usernameSelector && username) { await page.waitForSelector(usernameSelector, { timeout: global.timeOut }); await page.fill(usernameSelector, username) }
+      if (passwordSelector && password) { await page.waitForSelector(passwordSelector, { timeout: global.timeOut }); await page.fill(passwordSelector, password) }
+      await attemptCFSolve(page)
       if (submitSelector) await page.click(submitSelector)
       if (waitAfterLogin) await sleep(waitAfterLogin)
     }
@@ -139,12 +126,11 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     const needsNavigation = !currentUrl || currentUrl === 'about:blank' || (currentUrl !== req.url && !currentUrl.startsWith(req.url))
     if (needsNavigation) {
       await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
-      await sleep(3000)
+      await page.waitForLoadState('domcontentloaded').catch(() => { })
       cfClearance = await attemptCFSolve(page)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
-      // check again after networkidle in case inline widget appeared after load
       if (await hasTurnstileIframe(page)) {
-        await sleep(3000) // wait for any lazy content to finish shifting the layout
+        await page.waitForFunction(() => document.readyState === 'complete', { timeout: global.timeOut }).catch(() => { })
         cfClearance = await attemptCFSolve(page)
       }
     }
