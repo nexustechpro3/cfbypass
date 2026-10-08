@@ -45,12 +45,11 @@ const IS_LINUX = process.platform === 'linux'
 
 export const LAUNCH_OPTIONS = IS_LINUX
   ? {
-    headless: false,
+    headless: HEADLESS,
     ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [
-      '--headless=new',
       '--no-sandbox',
       '--disable-dev-shm-usage',
       ...COMMON_FLAGS,
@@ -68,6 +67,7 @@ export const LAUNCH_OPTIONS = IS_LINUX
     permissions: PERMISSIONS as unknown as string[],
     args: [...COMMON_FLAGS],
   }
+
 function cleanProfileDir(dirPath: string): void {
   try {
     if (dirPath && fs.existsSync(dirPath)) {
