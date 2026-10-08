@@ -49,13 +49,7 @@ export const LAUNCH_OPTIONS = IS_LINUX
     ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
-    args: [
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--enable-unsafe-swiftshader',
-      '--use-gl=swiftshader',
-      ...COMMON_FLAGS,
-    ],
+    args: [...COMMON_FLAGS],
     env: {
       ...process.env,
       DISPLAY: process.env.DISPLAY || ':99',
@@ -69,7 +63,6 @@ export const LAUNCH_OPTIONS = IS_LINUX
     permissions: PERMISSIONS as unknown as string[],
     args: [...COMMON_FLAGS],
   }
-
 function cleanProfileDir(dirPath: string): void {
   try {
     if (dirPath && fs.existsSync(dirPath)) {

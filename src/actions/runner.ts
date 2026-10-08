@@ -84,6 +84,15 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
       break
     }
 
+    case 'waitForFunction': {
+      if (!action.script) return
+      await page.waitForFunction(
+        new Function(action.script) as () => boolean,
+        { timeout }
+      )
+      break
+    }
+
     case 'scroll': {
       const x = action.x ?? 0
       const y = action.y ?? 300
