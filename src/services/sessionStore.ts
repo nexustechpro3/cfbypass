@@ -2,14 +2,11 @@ import { chromium, BrowserContext, Page } from 'patchright'
 import * as path from 'path'
 import * as os from 'os'
 import * as fs from 'fs'
-import { execSync } from 'child_process'
 import type { CookieParam, ProxyConfig } from '../types'
 import { toPwCookies } from '../solvers/base'
 import { LAUNCH_OPTIONS } from '../pool/browserPool'
-import { HEADLESS } from '../constants'
 
 const SESSION_TTL_MS = parseInt(process.env.SESSION_TTL_MS || '300000', 10)
-const IS_LINUX = process.platform === 'linux'
 
 interface SessionEntry {
   ctx: BrowserContext
@@ -37,7 +34,6 @@ export async function getOrCreate(sessionId: string, cookies?: CookieParam[], pr
   const tempDir = path.join(os.tmpdir(), `nexus-session-${sessionId}-${Date.now()}`)
   const ctx = await chromium.launchPersistentContext(tempDir, {
     ...LAUNCH_OPTIONS,
-    headless: HEADLESS,
     ...(proxy ? {
       proxy: {
         server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
@@ -46,14 +42,6 @@ export async function getOrCreate(sessionId: string, cookies?: CookieParam[], pr
       }
     } : {})
   })
-
-  if (IS_LINUX) {
-    await new Promise(r => setTimeout(r, 2000))
-    const display = process.env.DISPLAY || ':99'
-    const allWindows = execSync(`DISPLAY=${display} xdotool search --class "chrome"`).toString().trim().split('\n')
-      ; (ctx as any)._windowId = allWindows[allWindows.length - 1]
-    console.log(`[SessionStore] Captured window ID: ${(ctx as any)._windowId}`)
-  }
 
   const page = ctx.pages()[0] ?? await ctx.newPage()
   page.on('dialog', dialog => dialog.accept().catch(() => { }))

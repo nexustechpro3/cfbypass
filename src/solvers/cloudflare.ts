@@ -35,25 +35,12 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     console.log('[CF] contentFrame exhausted, falling back to xdotool')
     const box = await page.locator('iframe[src*="challenges.cloudflare.com"]').boundingBox()
     if (!box) { console.log('[CF] No bounding box'); return false }
-    if (!IS_LINUX) {
-      const x = box.x + 30
-      const y = box.y + box.height / 2
-      await page.mouse.move(x, y, { steps: 10 })
-      await sleep(150)
-      await page.mouse.click(x, y)
-      console.log(`[CF] Clicked via mouse at (${x.toFixed(0)}, ${y.toFixed(0)})`)
-      return true
-    }
-    const display = process.env.DISPLAY || ':99'
-    const windowId = (page.context() as any)._windowId
-    const winInfo = execSync(`DISPLAY=${display} xdotool getwindowgeometry ${windowId} 2>/dev/null`).toString()
-    const posMatch = winInfo.match(/Position:\s*(-?\d+),(-?\d+)/)
-    const winX = parseInt(posMatch?.[1] ?? '0')
-    const winY = parseInt(posMatch?.[2] ?? '0')
-    const clickX = Math.round(winX + box.x + 30)
-    const clickY = Math.round(winY + 85 + box.y + box.height / 2)
-    console.log(`[CF] Window at: ${winX},${winY} | xdotool clicking at: ${clickX},${clickY}`)
-    execSync(`DISPLAY=${display} xdotool mousemove ${clickX} ${clickY} click 1`)
+    const x = box.x + 30
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y, { steps: 10 })
+    await sleep(150)
+    await page.mouse.click(x, y)
+    console.log(`[CF] Clicked via mouse at (${x.toFixed(0)}, ${y.toFixed(0)})`)
     return true
   } catch (err) {
     console.log('[CF] Checkbox click failed:', (err as Error).message)

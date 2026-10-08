@@ -1,6 +1,5 @@
 import { BrowserContext, chromium, Page } from 'patchright'
 import { getPersistentContext, LAUNCH_OPTIONS } from './browserPool'
-import { HEADLESS } from '../constants'
 import type { ProxyConfig } from '../types'
 import * as path from 'path'
 import * as os from 'os'
@@ -23,7 +22,6 @@ export async function borrow(proxy?: ProxyConfig): Promise<BorrowResult> {
     const tmpDir = path.join(os.tmpdir(), `nexus-proxy-${requestId}`)
     const ctx = await chromium.launchPersistentContext(tmpDir, {
       ...LAUNCH_OPTIONS,
-      headless: HEADLESS,
       proxy: {
         server: `${proxy.protocol ?? 'socks5'}://${proxy.host}:${proxy.port}`,
         ...(proxy.username ? { username: proxy.username } : {}),
