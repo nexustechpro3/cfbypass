@@ -45,7 +45,6 @@ const IS_LINUX = process.platform === 'linux'
 
 export const LAUNCH_OPTIONS = IS_LINUX
   ? {
-    channel: 'chrome' as const,
     headless: HEADLESS,
     ignoreHTTPSErrors: true,
     viewport: null as null,
