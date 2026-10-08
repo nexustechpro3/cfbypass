@@ -46,6 +46,7 @@ const LAUNCH_OPTIONS = IS_LINUX
   ? {
     channel: 'chrome' as const,
     headless: false,
+    ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
     args: [...COMMON_FLAGS],
