@@ -45,11 +45,16 @@ const IS_LINUX = process.platform === 'linux'
 
 export const LAUNCH_OPTIONS = IS_LINUX
   ? {
-    headless: HEADLESS,
+    headless: false,
     ignoreHTTPSErrors: true,
     viewport: null as null,
     permissions: PERMISSIONS as unknown as string[],
-    args: [...COMMON_FLAGS],
+    args: [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      ...COMMON_FLAGS,
+    ],
     env: {
       ...process.env,
       DISPLAY: process.env.DISPLAY || ':99',
