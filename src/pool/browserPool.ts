@@ -52,6 +52,8 @@ export const LAUNCH_OPTIONS = IS_LINUX
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',
+      '--enable-unsafe-swiftshader',
+      '--use-gl=swiftshader',
       ...COMMON_FLAGS,
     ],
     env: {
