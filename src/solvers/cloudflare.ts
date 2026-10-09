@@ -1,6 +1,6 @@
 import { Page, Response } from 'patchright'
 import type { BypassRequest, BypassResult } from '../types'
-import { runActions, acquire, release } from '../actions/runner'
+import { runActions } from '../actions/runner'
 import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
 
 const IS_LINUX = process.platform === 'linux'
@@ -75,28 +75,6 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     if (attempt < 4) await sleep(2000)
   }
   return getClearance()
-}
-
-function startTurnstileWatcher(page: Page): () => void {
-  let stopped = false
-  const watch = async () => {
-    while (!stopped) {
-      await sleep(2000)
-      if (stopped) break
-      await acquire()
-      try {
-        const hasWidget = await hasTurnstileIframe(page).catch(() => false)
-        if (hasWidget) {
-          console.log('[CF] Turnstile reappeared during actions — re-clicking...')
-          await clickTurnstileCheckbox(page).catch(() => { })
-        }
-      } finally {
-        release()
-      }
-    }
-  }
-  watch()
-  return () => { stopped = true }
 }
 
 export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult> {
