@@ -421,13 +421,12 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
           csrf: pageInfo?.csrf ?? '',
           trace,
           response: rawApiResponse,
-          debugImageUrl: `data:image/png;base64,${canvasData.imageBase64}`,
         }
         const key = action.name ?? 'resolve'
         returned[key] = result
         await Promise.race([
-          page.waitForFunction((sel: string) => !document.querySelector(sel), selector, { timeout: 2000 }),
-          page.waitForURL(url => url.href !== page.url(), { timeout: 2000 }),
+          page.waitForFunction((sel: string) => !document.querySelector(sel), selector, { timeout: 500 }),
+          page.waitForURL(url => url.href !== page.url(), { timeout: 500 }),
         ]).catch(() => { })
       } // end loop
       break
