@@ -121,6 +121,7 @@ export interface BypassRequest {
   webhook?: WebhookConfig
   async?: boolean
   sessionId?: string
+  requestProfile: Record<string, unknown>
 }
 
 export interface BypassResult {

@@ -1,7 +1,7 @@
 import { Page, Response } from 'patchright'
 import type { BypassRequest, BypassResult } from '../types'
 import { runActions } from '../actions/runner'
-import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
+import { withSessionOrCtx, waitForClearance, buildRequestProfile, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
 
 const IS_LINUX = process.platform === 'linux'
 
@@ -42,7 +42,13 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
     console.log(`[CF] Clicked via mouse at (${x.toFixed(0)}, ${y.toFixed(0)})`)
     return true
   } catch (err) {
-    console.log('[CF] Checkbox click failed:', (err as Error).message)
+    const msg = (err as Error).message
+    // Frame detached = Patchright already solved and navigated — treat as success
+    if (msg.includes('Frame was detached') || msg.includes('frame was detached')) {
+      console.log('[CF] Frame detached — Patchright already solved, treating as success')
+      return true
+    }
+    console.log('[CF] Checkbox click failed:', msg)
     return false
   }
 }
@@ -62,6 +68,10 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     const cType = html.match(/cType:\s*'([^']+)'/)?.[1] ?? 'unknown'
     console.log(`[CF] cType: ${cType}`)
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
+      // Give Patchright a chance to auto-solve first before manual click
+      const earlyCleared = await waitForClearance(page, 3000)
+      if (earlyCleared) return earlyCleared
+
       await clickTurnstileCheckbox(page)
       const cleared = await waitForClearance(page, t)
       if (cleared) return cleared
@@ -141,6 +151,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     const finalUrl = page.url()
     const source = req.getPageSource ? await page.content().catch(() => null) : null
     const token = req.siteKey || mode === 'turnstile-max' ? await waitForToken(page, 5000) : null
+    const requestProfile = await buildRequestProfile(page, ctx)
     return {
       token,
       cf_clearance: cfClearance,
@@ -152,6 +163,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       solveMs: Date.now() - start,
       proxy: req.proxy ? buildProxyUrl(req.proxy) : null,
       mode, sessionId: req.sessionId,
+      requestProfile,
     }
   })
 }

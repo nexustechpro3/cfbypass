@@ -197,3 +197,39 @@ export function buildProxyUrl(proxy: ProxyConfig): string {
   }
   return `${scheme}://${proxy.host}:${proxy.port}`
 }
+
+export async function buildRequestProfile(page: Page, ctx: BrowserContext): Promise<Record<string, unknown>> {
+  let capturedHeaders: Record<string, string> = {}
+  try {
+    const client = await ctx.newCDPSession(page)
+    await client.send('Network.enable')
+    await new Promise<void>(resolve => {
+      client.on('Network.requestWillBeSent', evt => { if (!Object.keys(capturedHeaders).length && evt.request?.headers) { capturedHeaders = evt.request.headers } resolve() })
+      page.reload({ timeout: 8000 }).catch(() => { })
+      setTimeout(resolve, 5000)
+    })
+    await client.detach().catch(() => { })
+  } catch (_) { }
+
+  const [userAgent, cookiesRaw, localStore, sessionStore, navRaw, loc, docCookie] = await Promise.all([
+    page.evaluate(() => navigator.userAgent).catch(() => null),
+    ctx.cookies(),
+    page.evaluate(() => { try { const s: Record<string, string> = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i)!; s[k] = localStorage.getItem(k)! } return s } catch { return {} } }).catch(() => ({})),
+    page.evaluate(() => { try { const s: Record<string, string> = {}; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i)!; s[k] = sessionStorage.getItem(k)! } return s } catch { return {} } }).catch(() => ({})),
+    page.evaluate(() => { try { return JSON.parse(JSON.stringify(navigator)) } catch { return null } }).catch(() => null),
+    page.evaluate(() => ({ href: location.href, origin: location.origin, pathname: location.pathname })).catch(() => null),
+    page.evaluate(() => document.cookie).catch(() => null),
+  ])
+
+  return {
+    headers: capturedHeaders,
+    cookies: cookiesRaw,
+    cookieHeader: cookiesRaw.map((c: any) => `${c.name}=${c.value}`).join('; '),
+    localStorage: localStore,
+    sessionStorage: sessionStore,
+    navigator: navRaw,
+    location: loc,
+    documentCookie: docCookie,
+    userAgent,
+  }
+}
