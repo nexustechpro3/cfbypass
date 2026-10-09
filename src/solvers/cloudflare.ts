@@ -1,8 +1,7 @@
 import { Page, Response } from 'patchright'
 import type { BypassRequest, BypassResult } from '../types'
-import { runActions } from '../actions/runner'
+import { runActions, acquire, release } from '../actions/runner'
 import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
-import { execSync } from 'child_process'
 
 const IS_LINUX = process.platform === 'linux'
 
@@ -82,12 +81,17 @@ function startTurnstileWatcher(page: Page): () => void {
   let stopped = false
   const watch = async () => {
     while (!stopped) {
-      await sleep(3000)
+      await sleep(2000)
       if (stopped) break
-      const hasWidget = await hasTurnstileIframe(page).catch(() => false)
-      if (hasWidget) {
-        console.log('[CF] Turnstile reappeared during actions — re-clicking...')
-        await clickTurnstileCheckbox(page).catch(() => { })
+      await acquire()
+      try {
+        const hasWidget = await hasTurnstileIframe(page).catch(() => false)
+        if (hasWidget) {
+          console.log('[CF] Turnstile reappeared during actions — re-clicking...')
+          await clickTurnstileCheckbox(page).catch(() => { })
+        }
+      } finally {
+        release()
       }
     }
   }

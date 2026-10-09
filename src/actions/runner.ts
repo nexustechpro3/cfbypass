@@ -23,8 +23,8 @@ function generateTrace(targetX: number, targetY: number): Array<[number, number,
 }
 
 let _lock = false
-const acquire = async () => { while (_lock) await sleep(50); _lock = true }
-const release = () => { _lock = false }
+export const acquire = async () => { while (_lock) await sleep(50); _lock = true }
+export const release = () => { _lock = false }
 
 /**
  * Runs the actions pipeline. Per spec: try/catch per action — never throws and kills solver.
