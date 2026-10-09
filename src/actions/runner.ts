@@ -296,6 +296,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
           }
 
           rawApiResponse = res.data
+          console.log('[Actions] resolve raw response:', JSON.stringify(res.data).slice(0, 500))
           let targetText = ''
 
           if (reqConfig.responsePath) {
