@@ -3,7 +3,6 @@ FROM node:20-bookworm-slim
 ENV TRANSFORMERS_CACHE=/tmp/whisper-cache
 ENV DISPLAY=:99
 ENV HEADED=true
-# Tell crashpad where to write — must be writable at runtime
 ENV BREAKPAD_DUMP_LOCATION=/tmp/chrome-crashpad-database
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     xvfb \
     x11-utils \
+    xdotool \
     fonts-liberation \
     fonts-noto-color-emoji \
     libasound2 \
@@ -46,15 +46,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxshmfence1 \
     libxtst6 \
     wget \
-    && curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb \
-    && apt-get install -y --no-install-recommends /tmp/chrome.deb \
-    && rm /tmp/chrome.deb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
+RUN npx patchright install chromium
+RUN npx patchright install-deps chromium
 
 COPY . .
 RUN npm run build
@@ -65,14 +64,15 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 RUN useradd -r -s /bin/false nexus && \
-    chown -R nexus:nexus /app
+    mkdir -p /home/nexus/.cache && \
+    cp -r /root/.cache/ms-playwright /home/nexus/.cache/ms-playwright && \
+    chown -R nexus:nexus /app /home/nexus/.cache
 
 USER nexus
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-# Create /tmp dirs at runtime (tmpfs is remounted fresh — build-time mkdir is gone)
 CMD ["sh", "-c", "\
   mkdir -p /tmp/.X11-unix /tmp/chrome-crashpad-database /tmp/whisper-cache /tmp/nexus-clearance-profile && \
   chmod 1777 /tmp/.X11-unix && \
