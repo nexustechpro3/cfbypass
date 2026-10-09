@@ -22,21 +22,24 @@ function generateTrace(targetX: number, targetY: number): Array<[number, number,
   return points
 }
 
+let _lock = false
+const acquire = async () => { while (_lock) await sleep(50); _lock = true }
+const release = () => { _lock = false }
+
 /**
  * Runs the actions pipeline. Per spec: try/catch per action — never throws and kills solver.
+ * Acquires a lock before each action so concurrent page interactions never clash.
  * Stores evaluateAndReturn / screenshot results in `returned` map.
  */
-export async function runActions(
-  page: Page,
-  actions: ActionItem[],
-  returned: Record<string, unknown>
-): Promise<void> {
+export async function runActions(page: Page, actions: ActionItem[], returned: Record<string, unknown>): Promise<void> {
   for (const action of actions) {
+    await acquire()
     try {
       await runAction(page, action, returned)
     } catch (err) {
       console.error(`[Actions] Action "${action.type}" failed:`, err)
-      // Per spec: log and continue
+    } finally {
+      release()
     }
   }
 }

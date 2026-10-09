@@ -78,6 +78,23 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
   return getClearance()
 }
 
+function startTurnstileWatcher(page: Page): () => void {
+  let stopped = false
+  const watch = async () => {
+    while (!stopped) {
+      await sleep(3000)
+      if (stopped) break
+      const hasWidget = await hasTurnstileIframe(page).catch(() => false)
+      if (hasWidget) {
+        console.log('[CF] Turnstile reappeared during actions — re-clicking...')
+        await clickTurnstileCheckbox(page).catch(() => { })
+      }
+    }
+  }
+  watch()
+  return () => { stopped = true }
+}
+
 export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult> {
   const start = Date.now()
   const mode = req.mode ?? 'cloudflare'
@@ -122,7 +139,11 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       }
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
-    if (req.actions?.length) await runActions(page, req.actions, returned)
+    if (req.actions?.length) {
+      const stopWatcher = startTurnstileWatcher(page)
+      await runActions(page, req.actions, returned)
+      stopWatcher()
+    }
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
     const title = await page.title().catch(() => '')
@@ -143,3 +164,4 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     }
   })
 }
+
