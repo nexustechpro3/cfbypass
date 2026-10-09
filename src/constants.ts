@@ -36,7 +36,7 @@ export const DISCRIMINATOR_URLS = [
   'https://www.amazon.com',
   'https://steamcommunity.com',
 ]
-export const HEADLESS = process.platform === 'linux' || process.env.HEADED !== 'true'
+export const HEADLESS = process.env.HEADED !== 'true'
 // ProxyScrape API v4 — metadata-rich, pre-filterable
 export const PROXYSCRAPE_URL =
   'https://api.proxyscrape.com/v4/free-proxy-list/get' +
