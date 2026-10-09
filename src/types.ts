@@ -121,7 +121,6 @@ export interface BypassRequest {
   webhook?: WebhookConfig
   async?: boolean
   sessionId?: string
-  requestProfile: Record<string, unknown>
 }
 
 export interface BypassResult {
@@ -141,6 +140,7 @@ export interface BypassResult {
   proxy: string | null
   mode: SolverMode
   sessionId?: string
+  requestProfile: Record<string, unknown>
 }
 
 export interface WafSessionResult {
