@@ -143,10 +143,11 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       }
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
-    if (req.actions?.length) {
-      const stopWatcher = startTurnstileWatcher(page)
-      await runActions(page, req.actions, returned)
-      stopWatcher()
+    if (req.actions?.length) await runActions(page, req.actions, returned)
+    // Check turnstile once after all actions complete
+    if (await hasTurnstileIframe(page)) {
+      console.log('[CF] Turnstile appeared after actions — re-clicking...')
+      await clickTurnstileCheckbox(page).catch(() => { })
     }
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
