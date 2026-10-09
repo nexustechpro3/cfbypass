@@ -201,7 +201,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
     case 'solveCanvas': {
       const selector = action.selector ?? 'canvas'
       const timeout = action.timeout ?? 15000
-      const maxLoops = 10
+      const maxLoops = action.maxSolves ?? 5
       for (let _loop = 0; _loop < maxLoops; _loop++) {
         await page.waitForSelector(selector, { timeout }).catch(() => { })
         const isVisible = await page.evaluate((sel) => {
@@ -420,8 +420,10 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
         }
         const key = action.name ?? 'resolve'
         returned[key] = result
-        // Wait briefly for page to react, then check visibility on next iteration
-        await sleep(1500)
+        await Promise.race([
+          page.waitForFunction((sel: string) => !document.querySelector(sel), selector, { timeout: 5000 }),
+          page.waitForURL(url => url.href !== page.url(), { timeout: 5000 }),
+        ]).catch(() => { })
       } // end loop
       break
     }

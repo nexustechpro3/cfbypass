@@ -65,6 +65,7 @@ export interface ActionItem {
   | 'resolve'
   selector?: string
   value?: string
+  maxSolves?: number
   key?: string
   url?: string
   text?: string
