@@ -1,7 +1,7 @@
 import { Page, Response } from 'patchright'
 import type { BypassRequest, BypassResult } from '../types'
 import { runActions } from '../actions/runner'
-import { withSessionOrCtx, waitForClearance, buildRequestProfile, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl } from './base'
+import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl, buildRequestProfile } from './base'
 
 const IS_LINUX = process.platform === 'linux'
 
@@ -68,10 +68,6 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     const cType = html.match(/cType:\s*'([^']+)'/)?.[1] ?? 'unknown'
     console.log(`[CF] cType: ${cType}`)
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
-      // Give Patchright a chance to auto-solve first before manual click
-      const earlyCleared = await waitForClearance(page, 3000)
-      if (earlyCleared) return earlyCleared
-
       await clickTurnstileCheckbox(page)
       const cleared = await waitForClearance(page, t)
       if (cleared) return cleared
@@ -132,18 +128,10 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
     if (req.actions?.length) await runActions(page, req.actions, returned)
-    // Only re-click if turnstile is present AND not already solved
+    // Check turnstile once after all actions complete
     if (await hasTurnstileIframe(page)) {
-      const alreadySolved = await page.evaluate(() => {
-        const iframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]')
-        if (!iframe) return false
-        const rect = iframe.getBoundingClientRect()
-        return rect.height < 10 // solved turnstile collapses to near-zero height
-      }).catch(() => false)
-      if (!alreadySolved) {
-        console.log('[CF] Turnstile appeared after actions — re-clicking...')
-        await clickTurnstileCheckbox(page).catch(() => { })
-      }
+      console.log('[CF] Turnstile appeared after actions — re-clicking...')
+      await clickTurnstileCheckbox(page).catch(() => { })
     }
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
@@ -163,7 +151,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       solveMs: Date.now() - start,
       proxy: req.proxy ? buildProxyUrl(req.proxy) : null,
       mode, sessionId: req.sessionId,
-      requestProfile,
+      requestProfile
     }
   })
 }
