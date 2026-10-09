@@ -3,7 +3,9 @@ import type { BypassRequest, BypassResult } from '../types'
 import { runActions } from '../actions/runner'
 import { withSessionOrCtx, waitForClearance, waitForCF, waitForToken, toPwCookies, fromPwCookies, sleep, buildProxyUrl, buildRequestProfile } from './base'
 
-const IS_LINUX = process.platform === 'linux'
+const CF_TITLES = ['just a moment', 'checking your browser', 'verifying you are human', 'security check', 'please wait', 'attention required']
+const isCFTitle = (t: string) => CF_TITLES.some(k => t.toLowerCase().includes(k))
+const getClearance = (page: Page) => page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
 
 async function hasTurnstileIframe(page: Page): Promise<boolean> {
   return page.$('iframe[src*="challenges.cloudflare.com"]').then(el => !!el).catch(() => false)
@@ -13,77 +15,78 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   const t = global.timeOut
   try {
     await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: t })
-    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '')
-    console.log(`[CF] Page text: ${pageText.replace(/\n/g, ' ')}`)
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
-    await iframeEl?.scrollIntoViewIfNeeded()
-    const frame = await iframeEl?.contentFrame()
-    if (!frame) { console.log('[CF] No contentFrame'); return false }
-    await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' })
-    for (let i = 0; i < 2; i++) {
+    if (!iframeEl) { console.log('[CF] No iframe element'); return false }
+    await iframeEl.scrollIntoViewIfNeeded()
+    const frame = await iframeEl.contentFrame()
+    if (frame) {
       try {
-        await frame.locator('input[type="checkbox"]').click()
-        console.log(`[CF] Clicked via contentFrame (attempt ${i + 1})`)
-        return true
-      } catch {
-        console.log(`[CF] contentFrame click attempt ${i + 1} failed`)
-        // Wait for CF to re-enable the checkbox before retrying
-        if (i === 0) await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' }).catch(() => sleep(6000))
+        await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' })
+        for (let i = 0; i < 2; i++) {
+          try {
+            await frame.locator('input[type="checkbox"]').click()
+            console.log(`[CF] Clicked via contentFrame (attempt ${i + 1})`)
+            return true
+          } catch {
+            console.log(`[CF] contentFrame attempt ${i + 1} failed`)
+            if (i === 0) await frame.waitForSelector('input[type="checkbox"]:not([disabled])', { timeout: t, state: 'visible' }).catch(() => sleep(6000))
+          }
+        }
+      } catch (err) {
+        const msg = (err as Error).message
+        if (msg.includes('Frame was detached') || msg.includes('frame was detached')) { console.log('[CF] Frame detached — already solved'); return true }
+        console.log('[CF] contentFrame stage failed:', msg)
       }
     }
-    console.log('[CF] contentFrame exhausted, falling back to xdotool')
+    console.log('[CF] Falling back to mouse click...')
     const box = await page.locator('iframe[src*="challenges.cloudflare.com"]').boundingBox()
     if (!box) { console.log('[CF] No bounding box'); return false }
-    const x = box.x + 30
-    const y = box.y + box.height / 2
+    const x = box.x + 30, y = box.y + box.height / 2
     await page.mouse.move(x, y, { steps: 10 })
     await sleep(150)
     await page.mouse.click(x, y)
-    console.log(`[CF] Clicked via mouse at (${x.toFixed(0)}, ${y.toFixed(0)})`)
+    console.log(`[CF] Mouse click at (${x.toFixed(0)}, ${y.toFixed(0)})`)
     return true
   } catch (err) {
     const msg = (err as Error).message
-    // Frame detached = Patchright already solved and navigated — treat as success
-    if (msg.includes('Frame was detached') || msg.includes('frame was detached')) {
-      console.log('[CF] Frame detached — Patchright already solved, treating as success')
-      return true
-    }
-    console.log('[CF] Checkbox click failed:', msg)
+    if (msg.includes('Frame was detached') || msg.includes('frame was detached')) { console.log('[CF] Frame detached — already solved'); return true }
+    console.log('[CF] Click failed:', msg)
     return false
   }
 }
 
 async function attemptCFSolve(page: Page): Promise<string | null> {
   const t = global.timeOut
-  const CF_TITLES = ['just a moment', 'checking your browser', 'verifying you are human', 'security check', 'please wait', 'attention required']
-  const isCF = (title: string) => CF_TITLES.some(t => title.toLowerCase().includes(t))
-  const getClearance = () => page.context().cookies().then(c => c.find(c => c.name === 'cf_clearance')?.value ?? null)
   for (let attempt = 0; attempt < 5; attempt++) {
     const title = await page.title().catch(() => '')
-    const isChallenge = isCF(title)
+    const isChallenge = isCFTitle(title)
     const hasWidget = await hasTurnstileIframe(page)
     console.log(`[CF] Attempt ${attempt + 1} — title: "${title}", isChallenge: ${isChallenge}, hasWidget: ${hasWidget}`)
-    if (!isChallenge && !hasWidget) return getClearance()
+    if (!isChallenge && !hasWidget) return getClearance(page)
     const html = await page.content().catch(() => '')
     const cType = html.match(/cType:\s*'([^']+)'/)?.[1] ?? 'unknown'
     console.log(`[CF] cType: ${cType}`)
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
-      // Give Patchright a chance to auto-solve first before manual click
       const earlyCleared = await waitForClearance(page, 3000)
-      if (earlyCleared) return earlyCleared
+      if (earlyCleared) {
+        if (await hasTurnstileIframe(page)) { console.log('[CF] Embedded Turnstile after clearance — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
+        return earlyCleared
+      }
       await clickTurnstileCheckbox(page)
       const cleared = await waitForClearance(page, t)
-      if (cleared) return cleared
-      const stillHasWidget = await hasTurnstileIframe(page)
-      if (!isCF(await page.title().catch(() => '')) && !stillHasWidget) return getClearance()
+      if (cleared) {
+        if (await hasTurnstileIframe(page)) { console.log('[CF] Embedded Turnstile after solve — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
+        return cleared
+      }
+      if (!isCFTitle(await page.title().catch(() => '')) && !await hasTurnstileIframe(page)) return getClearance(page)
     } else {
       await waitForCF(page, t)
-      const clearance = await getClearance()
+      const clearance = await getClearance(page)
       if (clearance) return clearance
     }
     if (attempt < 4) await sleep(2000)
   }
-  return getClearance()
+  return getClearance(page)
 }
 
 export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult> {
@@ -116,9 +119,9 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       if (submitSelector) await page.click(submitSelector)
       if (waitAfterLogin) await sleep(waitAfterLogin)
     }
-    const currentUrl = page.url()
     let cfClearance: string | null = null
-    const needsNavigation = !currentUrl || currentUrl === 'about:blank' || (currentUrl !== req.url && !currentUrl.startsWith(req.url))
+    const currentUrl = page.url()
+    const needsNavigation = !currentUrl || currentUrl === 'about:blank' || (!currentUrl.startsWith(req.url) && currentUrl !== req.url)
     if (needsNavigation) {
       await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
       await page.waitForLoadState('domcontentloaded').catch(() => { })
@@ -131,11 +134,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
     if (req.actions?.length) await runActions(page, req.actions, returned)
-    // Check turnstile once after all actions complete
-    if (await hasTurnstileIframe(page)) {
-      console.log('[CF] Turnstile appeared after actions — re-clicking...')
-      await clickTurnstileCheckbox(page).catch(() => { })
-    }
+    if (await hasTurnstileIframe(page)) { console.log('[CF] Turnstile after actions — solving...'); await attemptCFSolve(page) }
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
     const title = await page.title().catch(() => '')
@@ -154,8 +153,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
       solveMs: Date.now() - start,
       proxy: req.proxy ? buildProxyUrl(req.proxy) : null,
       mode, sessionId: req.sessionId,
-      requestProfile
+      requestProfile,
     }
   })
 }
-
