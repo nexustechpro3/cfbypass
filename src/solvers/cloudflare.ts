@@ -68,6 +68,9 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     const cType = html.match(/cType:\s*'([^']+)'/)?.[1] ?? 'unknown'
     console.log(`[CF] cType: ${cType}`)
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
+      // Give Patchright a chance to auto-solve first before manual click
+      const earlyCleared = await waitForClearance(page, 3000)
+      if (earlyCleared) return earlyCleared
       await clickTurnstileCheckbox(page)
       const cleared = await waitForClearance(page, t)
       if (cleared) return cleared
