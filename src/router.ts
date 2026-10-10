@@ -284,7 +284,7 @@ router.all('/use-as-proxy', async (req, res) => {
       data: ['GET', 'HEAD'].includes(req.method!) ? undefined : req.body,
       responseType: 'arraybuffer',
       validateStatus: () => true,
-      timeout: 30000,
+      timeout: 0,
     })
 
     res.status(response.status)
