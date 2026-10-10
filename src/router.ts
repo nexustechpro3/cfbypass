@@ -255,6 +255,46 @@ router.post('/proxies/refresh', async (req, res) => {
   ok(res, { message: 'Refreshed', ...stats })
 })
 
+// ── Use Server As Proxy ───────────────────────────────────────────────────────
+router.all('/use-as-proxy', async (req, res) => {
+  const password = req.headers['x-proxy-password'] as string
+  const targetUrl = req.headers['x-proxy-target'] as string
+
+  if (!password || password !== process.env.SERVER_PROXY_PASSWORD) {
+    fail(res, 'UNAUTHORIZED', 'Invalid or missing x-proxy-password header', 401)
+    return
+  }
+
+  if (!targetUrl) {
+    fail(res, 'BAD_REQUEST', 'x-proxy-target header is required', 400)
+    return
+  }
+
+  try {
+    const axios = (await import('axios')).default
+    const response = await axios({
+      url: targetUrl,
+      method: req.method as any,
+      headers: {
+        ...req.headers,
+        host: new URL(targetUrl).host,
+        'x-proxy-password': undefined,
+        'x-proxy-target': undefined,
+      },
+      data: ['GET', 'HEAD'].includes(req.method!) ? undefined : req.body,
+      responseType: 'arraybuffer',
+      validateStatus: () => true,
+      timeout: 30000,
+    })
+
+    res.status(response.status)
+    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v as string))
+    res.send(response.data)
+  } catch (err) {
+    fail(res, 'PROXY_ERROR', (err as Error).message)
+  }
+})
+
 // ── Auto-detect + detect endpoints ───────────────────────────────────────────
 
 // POST /detect — sniff the page and return what challenges are present (no solving)
