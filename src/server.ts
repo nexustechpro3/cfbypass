@@ -52,6 +52,7 @@ app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html'))
 app.get('/test', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'test.html')))
 app.get('/usage', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'usage.html')))
 
+
 // API routes
 app.use('/', router)
 
