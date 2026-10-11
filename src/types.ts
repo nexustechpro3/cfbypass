@@ -82,6 +82,7 @@ export interface ActionItem {
   fullPage?: boolean
   click?: boolean
   request?: ResolveRequestConfig
+  fallbackRequests?: ResolveRequestConfig[]
   // Backward compatibility convenience fields
   geminiKey?: string
   prompt?: string

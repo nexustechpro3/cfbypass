@@ -281,18 +281,43 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
             }
           }
 
-          console.log(`[Actions] resolve: dispatching caller request to ${url}...`)
-          const res = await axios({
-            url,
-            method: (reqConfig.method ?? 'POST') as any,
-            headers: reqConfig.headers ?? { 'Content-Type': 'application/json' },
-            data: body,
-            timeout: reqConfig.timeout ?? 180000,
-            validateStatus: s => s < 600,
-          })
+          const allRequests = [reqConfig, ...(action.fallbackRequests ?? [])]
+          let res: any = null
 
-          if (res.status >= 400) {
-            throw new Error(`Resolver API returned HTTP ${res.status}: ${JSON.stringify(res.data).substring(0, 250)}`)
+          for (let reqIdx = 0; reqIdx < allRequests.length; reqIdx++) {
+            const currentReq = allRequests[reqIdx]
+            let currentUrl = currentReq.url
+              .replace(/\{\{w\}\}/g, String(canvasData.w))
+              .replace(/\{\{h\}\}/g, String(canvasData.h))
+            let currentBody = currentReq.body
+            if (currentBody !== undefined) {
+              const bodyStr = typeof currentBody === 'string' ? currentBody : JSON.stringify(currentBody)
+              const replaced = bodyStr
+                .replace(/\{\{image\}\}/g, canvasData.imageBase64)
+                .replace(/\{\{imageBase64\}\}/g, canvasData.imageBase64)
+                .replace(/\{\{w\}\}/g, String(canvasData.w))
+                .replace(/\{\{h\}\}/g, String(canvasData.h))
+              try { currentBody = JSON.parse(replaced) } catch (_) { currentBody = replaced }
+            }
+            console.log(`[Actions] resolve: dispatching request ${reqIdx + 1}/${allRequests.length} to ${currentUrl}...`)
+            res = await axios({
+              url: currentUrl,
+              method: (currentReq.method ?? 'POST') as any,
+              headers: currentReq.headers ?? { 'Content-Type': 'application/json' },
+              data: currentBody,
+              timeout: currentReq.timeout ?? 180000,
+              validateStatus: s => s < 600,
+            })
+            if (res.status === 503 || res.status === 429 || res.status === 500) {
+              console.warn(`[Actions] resolve: request ${reqIdx + 1} returned ${res.status} — trying fallback...`)
+              if (reqIdx < allRequests.length - 1) continue
+            }
+            if (res.status >= 400) {
+              throw new Error(`Resolver API returned HTTP ${res.status}: ${JSON.stringify(res.data).substring(0, 250)}`)
+            }
+            url = currentUrl
+            body = currentBody
+            break
           }
 
           rawApiResponse = res.data
