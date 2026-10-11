@@ -14,23 +14,24 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
 async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
   await sleep(2500)
   try {
-    const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
-    if (!iframeEl) return false
-    const frame = await iframeEl.contentFrame()
-    if (!frame) return false
-    const result = await frame.evaluate(() => {
-      const cb = document.querySelector('input[type="checkbox"]') as HTMLInputElement
-      const mark = document.querySelector('.mark')
-      const successEl = document.querySelector('[aria-checked="true"], .success, #success')
-      return {
-        checked: cb?.checked,
-        markVisible: mark ? window.getComputedStyle(mark).display !== 'none' : false,
-        successEl: !!successEl,
-        bodyHtml: document.body.innerHTML.substring(0, 300),
+    // check parent page for success indicators — iframe is often detached by this point
+    const solved = await page.evaluate(() => {
+      const text = document.body.innerText
+      if (text.includes('Success')) return true
+      const iframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]')
+      for (const iframe of iframes) {
+        try {
+          const doc = (iframe as HTMLIFrameElement).contentDocument
+          if (!doc) continue
+          const cb = doc.querySelector('input[type="checkbox"]') as HTMLInputElement
+          if (cb?.checked) return true
+          if (doc.body?.innerText?.includes('Success')) return true
+        } catch { }
       }
-    }).catch(() => null)
-    console.log('[CF] isTurnstileAlreadySolved result:', JSON.stringify(result))
-    return !!(result?.checked || result?.markVisible || result?.successEl)
+      return false
+    }).catch(() => false)
+    console.log('[CF] isTurnstileAlreadySolved:', solved)
+    return solved
   } catch { return false }
 }
 
