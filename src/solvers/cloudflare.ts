@@ -12,13 +12,22 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
 }
 
 async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
+  await sleep(2500)
   try {
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
     if (!iframeEl) return false
     const frame = await iframeEl.contentFrame()
     if (!frame) return false
-    const checked = await frame.$('input[type="checkbox"][aria-checked="true"]').catch(() => null)
-    return !!checked
+    const success = await frame.evaluate(() => {
+      const cb = document.querySelector('input[type="checkbox"]') as HTMLInputElement
+      if (cb?.checked) return true
+      const label = document.querySelector('.mark')
+      if (label && window.getComputedStyle(label).display !== 'none') return true
+      const successEl = document.querySelector('[aria-checked="true"], .success, #success')
+      if (successEl) return true
+      return false
+    }).catch(() => false)
+    return success
   } catch { return false }
 }
 
