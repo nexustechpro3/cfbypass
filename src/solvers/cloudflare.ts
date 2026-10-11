@@ -12,26 +12,21 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
 }
 
 async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
-  await sleep(2500)
   try {
-    // check parent page for success indicators — iframe is often detached by this point
-    const solved = await page.evaluate(() => {
-      const text = document.body.innerText
-      if (text.includes('Success')) return true
-      const iframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]')
-      for (const iframe of iframes) {
-        try {
-          const doc = (iframe as HTMLIFrameElement).contentDocument
-          if (!doc) continue
-          const cb = doc.querySelector('input[type="checkbox"]') as HTMLInputElement
-          if (cb?.checked) return true
-          if (doc.body?.innerText?.includes('Success')) return true
-        } catch { }
-      }
-      return false
-    }).catch(() => false)
-    console.log('[CF] isTurnstileAlreadySolved:', solved)
-    return solved
+    // poll for up to 3 seconds waiting for the response value to be set
+    for (let i = 0; i < 6; i++) {
+      const len = await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>(
+          '[name="cf-turnstile-response"], input[id*="cf-turnstile"]'
+        )
+        return input?.value?.length ?? 0
+      }).catch(() => 0)
+      console.log(`[CF] turnstile response length: ${len}`)
+      if (len > 100) { console.log('[CF] isTurnstileAlreadySolved: true'); return true }
+      await sleep(500)
+    }
+    console.log('[CF] isTurnstileAlreadySolved: false')
+    return false
   } catch { return false }
 }
 
