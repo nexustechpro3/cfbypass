@@ -269,6 +269,7 @@ router.all('/use-as-proxy', async (req, res) => {
     fail(res, 'BAD_REQUEST', 'x-proxy-target header is required', 400)
     return
   }
+  console.log('[Proxy] →', req.method, targetUrl)
 
   try {
     const axios = (await import('axios')).default
@@ -291,6 +292,7 @@ router.all('/use-as-proxy', async (req, res) => {
       validateStatus: () => true,
       timeout: 30_000,
     })
+    console.log('[Proxy] ← status:', response.status, '| cookie sent:', (forwardHeaders['cookie'] as string)?.substring(0, 80))  // ← here
 
     res.status(response.status)
     const skipHeaders = ['transfer-encoding', 'connection', 'keep-alive']
