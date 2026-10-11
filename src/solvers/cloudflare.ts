@@ -11,8 +11,23 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
   return page.$('iframe[src*="challenges.cloudflare.com"]').then(el => !!el).catch(() => false)
 }
 
+async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
+  try {
+    const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
+    if (!iframeEl) return false
+    const frame = await iframeEl.contentFrame()
+    if (!frame) return false
+    const checked = await frame.$('input[type="checkbox"][aria-checked="true"]').catch(() => null)
+    return !!checked
+  } catch { return false }
+}
+
 async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   const t = global.timeOut
+  if (await isTurnstileAlreadySolved(page)) {
+    console.log('[CF] Turnstile already solved — skipping click')
+    return true
+  }
   try {
     await page.waitForSelector('iframe[src*="challenges.cloudflare.com"]', { timeout: t })
     const iframeEl = await page.$('iframe[src*="challenges.cloudflare.com"]')
@@ -69,13 +84,13 @@ async function attemptCFSolve(page: Page): Promise<string | null> {
     if (hasWidget || cType === 'managed' || cType === 'interactive' || isChallenge) {
       const earlyCleared = await waitForClearance(page, 3000)
       if (earlyCleared) {
-        if (await hasTurnstileIframe(page)) { console.log('[CF] Embedded Turnstile after clearance — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
+        if (await hasTurnstileIframe(page) && !await isTurnstileAlreadySolved(page)) { console.log('[CF] Embedded Turnstile after clearance — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
         return earlyCleared
       }
       await clickTurnstileCheckbox(page)
       const cleared = await waitForClearance(page, t)
       if (cleared) {
-        if (await hasTurnstileIframe(page)) { console.log('[CF] Embedded Turnstile after solve — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
+        if (await hasTurnstileIframe(page) && !await isTurnstileAlreadySolved(page)) { console.log('[CF] Embedded Turnstile after solve — clicking...'); await clickTurnstileCheckbox(page); await sleep(2000) }
         return cleared
       }
       if (!isCFTitle(await page.title().catch(() => '')) && !await hasTurnstileIframe(page)) return getClearance(page)
@@ -134,7 +149,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     }
     if (req.waitFor) await sleep(Math.min(req.waitFor, 10000))
     if (req.actions?.length) await runActions(page, req.actions, returned)
-    if (await hasTurnstileIframe(page)) { console.log('[CF] Turnstile after actions — solving...'); await attemptCFSolve(page) }
+    if (await hasTurnstileIframe(page) && !await isTurnstileAlreadySolved(page)) { console.log('[CF] Turnstile after actions — solving...'); await attemptCFSolve(page) }
     const allCookies = await ctx.cookies()
     const userAgent = await page.evaluate(() => navigator.userAgent)
     const title = await page.title().catch(() => '')
