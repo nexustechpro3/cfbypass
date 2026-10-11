@@ -18,16 +18,19 @@ async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
     if (!iframeEl) return false
     const frame = await iframeEl.contentFrame()
     if (!frame) return false
-    const success = await frame.evaluate(() => {
+    const result = await frame.evaluate(() => {
       const cb = document.querySelector('input[type="checkbox"]') as HTMLInputElement
-      if (cb?.checked) return true
-      const label = document.querySelector('.mark')
-      if (label && window.getComputedStyle(label).display !== 'none') return true
+      const mark = document.querySelector('.mark')
       const successEl = document.querySelector('[aria-checked="true"], .success, #success')
-      if (successEl) return true
-      return false
-    }).catch(() => false)
-    return success
+      return {
+        checked: cb?.checked,
+        markVisible: mark ? window.getComputedStyle(mark).display !== 'none' : false,
+        successEl: !!successEl,
+        bodyHtml: document.body.innerHTML.substring(0, 300),
+      }
+    }).catch(() => null)
+    console.log('[CF] isTurnstileAlreadySolved result:', JSON.stringify(result))
+    return !!(result?.checked || result?.markVisible || result?.successEl)
   } catch { return false }
 }
 
