@@ -269,36 +269,26 @@ router.all('/use-as-proxy', async (req, res) => {
     fail(res, 'BAD_REQUEST', 'x-proxy-target header is required', 400)
     return
   }
-  console.log('[Proxy] →', req.method, targetUrl)
 
   try {
     const axios = (await import('axios')).default
-    const { host, ...forwardHeaders } = req.headers as Record<string, any>
-    delete forwardHeaders['x-proxy-password']
-    delete forwardHeaders['x-proxy-target']
-    delete forwardHeaders['content-length']
-    delete forwardHeaders['transfer-encoding']
-
     const response = await axios({
       url: targetUrl,
       method: req.method as any,
       headers: {
-        ...forwardHeaders,
+        ...req.headers,
         host: new URL(targetUrl).host,
+        'x-proxy-password': undefined,
+        'x-proxy-target': undefined,
       },
       data: ['GET', 'HEAD'].includes(req.method!) ? undefined : req.body,
       responseType: 'arraybuffer',
-      maxRedirects: 5,
       validateStatus: () => true,
-      timeout: 30_000,
+      timeout: 0,
     })
-    console.log('[Proxy] ← status:', response.status, '| cookie sent:', (forwardHeaders['cookie'] as string)?.substring(0, 80))  // ← here
 
     res.status(response.status)
-    const skipHeaders = ['transfer-encoding', 'connection', 'keep-alive']
-    Object.entries(response.headers).forEach(([k, v]) => {
-      if (!skipHeaders.includes(k.toLowerCase())) res.setHeader(k, v as string)
-    })
+    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v as string))
     res.send(response.data)
   } catch (err) {
     fail(res, 'PROXY_ERROR', (err as Error).message)
