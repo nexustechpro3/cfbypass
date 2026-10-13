@@ -270,6 +270,55 @@ router.all('/use-as-proxy', async (req, res) => {
     return
   }
 
+  // ── WebSocket upgrade ─────────────────────────────────────
+  const isUpgrade = req.headers['upgrade']?.toLowerCase() === 'websocket'
+  if (isUpgrade) {
+    const target = new URL(targetUrl)
+    const isSecure = target.protocol === 'wss:' || target.protocol === 'https:'
+    const port = target.port ? parseInt(target.port) : (isSecure ? 443 : 80)
+    const host = target.hostname
+
+    const forwardHeaders = { ...req.headers }
+    delete forwardHeaders['x-proxy-password']
+    delete forwardHeaders['x-proxy-target']
+    forwardHeaders['host'] = `${host}:${port}`
+
+    const headerLines = Object.entries(forwardHeaders)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\r\n')
+
+    const upstream = isSecure
+      ? require('tls').connect({ host, port, servername: host, rejectUnauthorized: false })
+      : require('net').createConnection({ host, port })
+
+    const socket = (res as any).socket || (req as any).socket
+
+    upstream.on('connect', () => {
+      upstream.write(
+        `GET ${target.pathname}${target.search || ''} HTTP/1.1\r\n${headerLines}\r\n\r\n`
+      )
+    })
+
+    upstream.on('data', (data: Buffer) => socket.write(data))
+    socket.on('data', (data: Buffer) => upstream.write(data))
+
+    upstream.on('end', () => socket.end())
+    upstream.on('error', (err: Error) => {
+      console.error('WS upstream error:', err.message)
+      socket.destroy()
+    })
+
+    socket.on('end', () => upstream.end())
+    socket.on('error', (err: Error) => {
+      console.error('WS client error:', err.message)
+      upstream.destroy()
+    })
+
+    return // don't fall through to HTTP proxy
+  }
+
+  // ── HTTP proxy ────────────────────────────────────────────
   try {
     const axios = (await import('axios')).default
     const response = await axios({

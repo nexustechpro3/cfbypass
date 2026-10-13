@@ -13,8 +13,8 @@ async function hasTurnstileIframe(page: Page): Promise<boolean> {
 
 async function isTurnstileAlreadySolved(page: Page): Promise<boolean> {
   try {
-    // poll for up to 3 seconds waiting for the response value to be set
-    for (let i = 0; i < 6; i++) {
+    // poll for up to 1.5 seconds waiting for the response value to be set
+    for (let i = 0; i < 3; i++) {
       const len = await page.evaluate(() => {
         const input = document.querySelector<HTMLInputElement>(
           '[name="cf-turnstile-response"], input[id*="cf-turnstile"]'
