@@ -80,6 +80,158 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
       break
     }
 
+    case 'solveIvas': {
+      const maxLoops = action.maxSolves ?? 5
+      const processedCids = new Set<string>()
+
+      for (let _loop = 0; _loop < maxLoops; _loop++) {
+
+        // 1. Intercept /sys/vfy/w response from page
+        const vfyData = await page.evaluate(() => {
+          return new Promise<any>((resolve) => {
+            const origFetch = window.fetch
+            window.fetch = async function (...args) {
+              const res = await origFetch(...args)
+              const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
+              if (url.includes('/sys/vfy/w')) {
+                const clone = res.clone()
+                clone.json().then(resolve)
+              }
+              return res
+            }
+            // Timeout after 10s
+            setTimeout(() => resolve(null), 10000)
+          })
+        }).catch(() => null)
+
+        if (!vfyData) {
+          console.warn('[solveIvas] Timed out waiting for /sys/vfy/w')
+          break
+        }
+
+        const { img, perm, cid, tiles, w, h } = vfyData
+        console.log(`[solveIvas] Got cid=${cid}, tiles=${tiles}, w=${w}, h=${h}`)
+
+        // Skip already processed cids
+        if (processedCids.has(cid)) {
+          console.log(`[solveIvas] cid ${cid} already processed, waiting for new one...`)
+          await sleep(2000)
+          continue
+        }
+        processedCids.add(cid)
+
+        // 2. Fetch scrambled image as base64
+        const scrambledB64: string = await page.evaluate(async (imgUrl: string) => {
+          const res = await fetch(imgUrl)
+          const blob = await res.blob()
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve((reader.result as string).split(',')[1])
+            reader.readAsDataURL(blob)
+          })
+        }, img)
+
+        // 3. Unscramble image server-side using jimp
+        const Jimp = require('jimp')
+        const n = tiles  // 4
+        const tw = w / n // 120
+        const th = h / n // 75
+
+        const scrambled = await Jimp.read(Buffer.from(scrambledB64, 'base64'))
+        const unscrambled = new Jimp(w, h)
+
+        for (let dest = 0; dest < perm.length; dest++) {
+          const src = perm[dest]
+          const srcX = (dest % n) * tw
+          const srcY = Math.floor(dest / n) * th
+          const dstX = (src % n) * tw
+          const dstY = Math.floor(src / n) * th
+
+          const tile = scrambled.clone().crop(srcX, srcY, tw, th)
+          unscrambled.composite(tile, dstX, dstY)
+        }
+
+        const unscrambledB64 = (await unscrambled.getBase64Async(Jimp.MIME_PNG))
+          .replace(/^data:image\/png;base64,/, '')
+
+        // Save for debugging
+        const fs = require('fs')
+        const path = require('path')
+        const imagesDir = path.join(process.cwd(), 'images')
+        if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true })
+        fs.writeFileSync(path.join(imagesDir, `unscrambled_${cid}.png`), Buffer.from(unscrambledB64, 'base64'))
+
+        // 4. Send unscrambled image to AI
+        const reqConfig = action.request
+        const bodyStr = JSON.stringify(reqConfig.body)
+          .replace(/\{\{image\}\}/g, unscrambledB64)
+          .replace(/\{\{w\}\}/g, String(w))
+          .replace(/\{\{h\}\}/g, String(h))
+
+        console.log(`[solveIvas] Sending unscrambled image to AI...`)
+        const aiRes = await axios({
+          url: reqConfig.url,
+          method: 'POST',
+          headers: reqConfig.headers,
+          data: JSON.parse(bodyStr),
+          timeout: reqConfig.timeout ?? 180000,
+          validateStatus: s => s < 600,
+        })
+
+        if (aiRes.status >= 400) {
+          throw new Error(`AI API returned HTTP ${aiRes.status}: ${JSON.stringify(aiRes.data).substring(0, 250)}`)
+        }
+
+        // 5. Parse x,y from AI response
+        const parts = reqConfig.responsePath.replace(/\[(\w+)\]/g, '.$1').split('.')
+        let val: any = aiRes.data
+        for (const p of parts) val = val?.[p]
+        const targetText = typeof val === 'string' ? val : JSON.stringify(val ?? '')
+
+        const match = targetText.match(/\{[^{}]*"x"\s*:\s*([0-9.]+)[^{}]*"y"\s*:\s*([0-9.]+)[^{}]*\}/i)
+        if (!match) throw new Error(`Could not find {x,y} in AI response: ${targetText}`)
+
+        const x = Math.round(parseFloat(match[1]))
+        const y = Math.round(parseFloat(match[2]))
+        console.log(`[solveIvas] AI answer: x=${x}, y=${y}`)
+
+        // 6. Generate trace and POST to /sys/vfy/c
+        const trace = generateTrace(x, y)
+        const csrf = await page.evaluate(() =>
+          document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+        )
+
+        const vfyRes = await page.evaluate(async ({ x, y, cid, trace, csrf }) => {
+          const res = await fetch('/sys/vfy/c', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrf,
+            },
+            body: JSON.stringify({ x, y, cid, trace }),
+          })
+          return res.json()
+        }, { x, y, cid, trace, csrf })
+
+        console.log(`[solveIvas] /sys/vfy/c response:`, vfyRes)
+
+        // 7. Check result
+        if (vfyRes?.status === 'pass') {
+          console.log('[solveIvas] ✅ Captcha solved!')
+          if (action.name) returned[action.name] = { x, y, cid, csrf, trace }
+          break
+        } else if (vfyRes?.status === 'challenge') {
+          console.log('[solveIvas] 🔄 New challenge, looping...')
+          await sleep(1500)
+          continue
+        } else {
+          console.warn('[solveIvas] Unexpected response:', vfyRes)
+          break
+        }
+      }
+      break
+    }
+
     case 'type': {
       if (!action.selector || action.value === undefined) return
       await page.waitForSelector(action.selector, { timeout })
