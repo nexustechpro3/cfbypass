@@ -53,7 +53,6 @@ export interface ActionItem {
   | 'select'
   | 'keypress'
   | 'wait'
-  | 'solveIvas'
   | 'navigate'
   | 'waitForSelector'
   | 'waitForFunction'
