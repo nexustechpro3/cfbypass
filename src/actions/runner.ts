@@ -204,7 +204,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
     case 'solveCanvas': {
       const selector = action.selector ?? 'canvas'
       const timeout = action.timeout ?? 15000
-      const maxLoops = action.maxSolves ?? 5
+      const maxLoops = action.maxSolves ?? 9
       for (let _loop = 0; _loop < maxLoops; _loop++) {
         await page.waitForSelector(selector, { timeout }).catch(() => { })
         const isVisible = await page.evaluate((sel) => {
