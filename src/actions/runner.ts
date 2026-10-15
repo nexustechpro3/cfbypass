@@ -163,6 +163,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
 
         // 4. Send unscrambled image to AI
         const reqConfig = action.request
+        if (!reqConfig) throw new Error('[solveIvas] No request config provided')
         const bodyStr = JSON.stringify(reqConfig.body)
           .replace(/\{\{image\}\}/g, unscrambledB64)
           .replace(/\{\{w\}\}/g, String(w))
@@ -183,7 +184,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
         }
 
         // 5. Parse x,y from AI response
-        const parts = reqConfig.responsePath.replace(/\[(\w+)\]/g, '.$1').split('.')
+        const parts = (reqConfig.responsePath ?? '').replace(/\[(\w+)\]/g, '.$1').split('.')
         let val: any = aiRes.data
         for (const p of parts) val = val?.[p]
         const targetText = typeof val === 'string' ? val : JSON.stringify(val ?? '')
