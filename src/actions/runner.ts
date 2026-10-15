@@ -256,6 +256,13 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
           break
         }
 
+        // Save canvas screenshot to images folder
+        const fs = require('fs')
+        const path = require('path')
+        const imagesDir = path.join(process.cwd(), 'images')
+        if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true })
+        fs.writeFileSync(path.join(imagesDir, `canvas_${Date.now()}.png`), Buffer.from(canvasData.imageBase64, 'base64'))
+
         let parsedCoords: { x: number; y: number } | null = null
         let rawApiResponse: unknown = null
 
