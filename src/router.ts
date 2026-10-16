@@ -24,6 +24,11 @@ import type { BypassRequest, SolverMode } from './types'
 
 const router = Router()
 
+const HOP_BY_HOP = new Set([
+  'connection', 'keep-alive', 'transfer-encoding',
+  'te', 'trailer', 'upgrade', 'proxy-authorization', 'proxy-connection',
+])
+
 function ok(res: Response, data: unknown): void {
   res.json({ success: true, data })
 }
@@ -37,24 +42,15 @@ function fail(res: Response, code: string, message: string, status = 500): void 
 async function run(req: BypassRequest): Promise<unknown> {
   const mode = req.mode ?? 'cloudflare'
 
-  // Auto-detect mode: sniff the page, pick the right solver, then solve
   if (mode === 'auto') {
     const detection = await detect(req.url, req.proxy)
     const resolvedMode = detection.mode
     console.log(`[Auto] ${req.url} → detected: ${detection.challenges.join(', ')} → solver: ${resolvedMode}`)
-
-    // Carry detected siteKey into request if not already set
     const autoReq: BypassRequest = { ...req, mode: resolvedMode }
     if (!autoReq.siteKey) {
-      autoReq.siteKey = detection.turnstileSiteKey
-        ?? detection.recaptchaSiteKey
-        ?? detection.hcaptchaSiteKey
-        ?? undefined
+      autoReq.siteKey = detection.turnstileSiteKey ?? detection.recaptchaSiteKey ?? detection.hcaptchaSiteKey ?? undefined
     }
-
-    const result = await run(autoReq)
-    // Attach detection metadata to result
-    return { ...(result as Record<string, unknown>), detection }
+    return { ...(await run(autoReq) as Record<string, unknown>), detection }
   }
 
   switch (mode) {
@@ -78,19 +74,16 @@ async function handleSolve(req: Request, res: Response, overrides?: Partial<Bypa
 
   broadcast('traffic', { url: body.url, mode, status: 'received' })
 
-  // Resolve proxy from pool if requested
   if (body.useProxy && !body.proxy) {
     const p = nextProxy(body.country)
     if (!p) { fail(res, 'NO_PROXY', 'No proxy available in pool', 503); return }
     body.proxy = p
   }
 
-  // Async mode — return jobId immediately
   if (body.async) {
     const jobId = mkJob({ url: body.url, mode })
     ok(res, { jobId, status: 'pending' })
     broadcast('traffic', { url: body.url, mode, status: 'queued', jobId })
-
     global.browserLength++
     const start = Date.now()
     run(body)
@@ -110,7 +103,6 @@ async function handleSolve(req: Request, res: Response, overrides?: Partial<Bypa
     return
   }
 
-  // Sync mode
   global.browserLength++
   const start = Date.now()
   try {
@@ -130,7 +122,6 @@ async function handleSolve(req: Request, res: Response, overrides?: Partial<Bypa
 // ── Main bypass endpoints ─────────────────────────────────────────────────────
 
 router.post('/bypass', guard, validateBypass, (req, res) => handleSolve(req, res))
-
 router.post('/bypass/batch', guard, async (req, res) => {
   const BATCH_LIMIT = parseInt(process.env.BATCH_LIMIT || '10', 10)
   const requests: BypassRequest[] = req.body.requests ?? []
@@ -140,7 +131,6 @@ router.post('/bypass/batch', guard, async (req, res) => {
   if (requests.length > BATCH_LIMIT) {
     fail(res, 'BAD_REQUEST', `Max ${BATCH_LIMIT} requests per batch`, 400); return
   }
-
   const jobs = requests.map(r => {
     const jobId = mkJob({ url: r.url, mode: r.mode ?? 'cloudflare' })
     global.browserLength++
@@ -152,7 +142,6 @@ router.post('/bypass/batch', guard, async (req, res) => {
       .finally(() => { global.browserLength-- })
     return { jobId, url: r.url }
   })
-
   ok(res, { jobs })
 })
 
@@ -178,8 +167,7 @@ router.get('/job/:id', (req, res) => {
 })
 
 router.get('/jobs', (req, res) => {
-  const jobs = listJobs(50)
-  ok(res, { total: jobs.length, jobs })
+  ok(res, { total: listJobs(50).length, jobs: listJobs(50) })
 })
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -196,8 +184,7 @@ router.post('/session/get', guard, async (req, res) => {
   try {
     const { page } = await getOrCreate(sessionId, cookies)
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
-    const source = await page.content()
-    ok(res, { source, url: page.url(), sessionId })
+    ok(res, { source: await page.content(), url: page.url(), sessionId })
   } catch (err) {
     fail(res, 'FAILED', (err as Error).message)
   } finally {
@@ -213,10 +200,9 @@ router.post('/session/post', guard, async (req, res) => {
     const { page } = await getOrCreate(sessionId, cookies)
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: global.timeOut })
     for (const [selector, value] of Object.entries(fields)) {
-      await page.fill(selector, String(value)).catch(() => { /* ignore missing fields */ })
+      await page.fill(selector, String(value)).catch(() => { })
     }
-    const source = await page.content()
-    ok(res, { source, url: page.url(), sessionId })
+    ok(res, { source: await page.content(), url: page.url(), sessionId })
   } catch (err) {
     fail(res, 'FAILED', (err as Error).message)
   } finally {
@@ -234,12 +220,9 @@ router.post('/session/destroy', async (req, res) => {
 // ── Proxy ─────────────────────────────────────────────────────────────────────
 
 router.get('/get-proxy', async (req, res) => {
-  const country = req.query.country as string | undefined
-  const entry = getOne(country)
+  const entry = getOne(req.query.country as string | undefined)
   if (!entry) { fail(res, 'NO_PROXY', 'No proxy available', 503); return }
-  // Live-test and score it
-  const scored = await validateAndScore(entry.url)
-  ok(res, scored ?? entry)
+  ok(res, await validateAndScore(entry.url) ?? entry)
 })
 
 router.post('/proxies/ban', (req, res) => {
@@ -251,115 +234,96 @@ router.post('/proxies/ban', (req, res) => {
 
 router.post('/proxies/refresh', async (req, res) => {
   await refresh()
-  const stats = proxyStats()
-  ok(res, { message: 'Refreshed', ...stats })
+  ok(res, { message: 'Refreshed', ...proxyStats() })
 })
 
 // ── Use Server As Proxy ───────────────────────────────────────────────────────
+
 router.all('/use-as-proxy', async (req, res) => {
   const password = req.headers['x-proxy-password'] as string
   const targetUrl = req.headers['x-proxy-target'] as string
 
   if (!password || password !== process.env.SERVER_PROXY_PASSWORD) {
-    fail(res, 'UNAUTHORIZED', 'Invalid or missing x-proxy-password header', 401)
-    return
+    fail(res, 'UNAUTHORIZED', 'Invalid or missing x-proxy-password header', 401); return
   }
-
   if (!targetUrl) {
-    fail(res, 'BAD_REQUEST', 'x-proxy-target header is required', 400)
-    return
+    fail(res, 'BAD_REQUEST', 'x-proxy-target header is required', 400); return
   }
 
   // ── WebSocket upgrade ─────────────────────────────────────
-  const isUpgrade = req.headers['upgrade']?.toLowerCase() === 'websocket'
-  if (isUpgrade) {
+  if (req.headers['upgrade']?.toLowerCase() === 'websocket') {
     const target = new URL(targetUrl)
     const isSecure = target.protocol === 'wss:' || target.protocol === 'https:'
     const port = target.port ? parseInt(target.port) : (isSecure ? 443 : 80)
     const host = target.hostname
 
-    const forwardHeaders = { ...req.headers }
-    delete forwardHeaders['x-proxy-password']
-    delete forwardHeaders['x-proxy-target']
-    forwardHeaders['host'] = `${host}:${port}`
+    const fwdHeaders = Object.fromEntries(
+      Object.entries(req.headers)
+        .filter(([k, v]) => v !== undefined && k !== 'x-proxy-password' && k !== 'x-proxy-target')
+    ) as Record<string, string>
+    fwdHeaders['host'] = `${host}:${port}`
 
-    const headerLines = Object.entries(forwardHeaders)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join('\r\n')
-
+    const headerLines = Object.entries(fwdHeaders).map(([k, v]) => `${k}: ${v}`).join('\r\n')
     const upstream = isSecure
       ? require('tls').connect({ host, port, servername: host, rejectUnauthorized: false })
       : require('net').createConnection({ host, port })
-
     const socket = (res as any).socket || (req as any).socket
 
-    upstream.on('connect', () => {
-      upstream.write(
-        `GET ${target.pathname}${target.search || ''} HTTP/1.1\r\n${headerLines}\r\n\r\n`
-      )
-    })
-
-    upstream.on('data', (data: Buffer) => socket.write(data))
-    socket.on('data', (data: Buffer) => upstream.write(data))
-
+    upstream.on('connect', () => upstream.write(`GET ${target.pathname}${target.search || ''} HTTP/1.1\r\n${headerLines}\r\n\r\n`))
+    upstream.on('data', (d: Buffer) => socket.write(d))
     upstream.on('end', () => socket.end())
-    upstream.on('error', (err: Error) => {
-      console.error('WS upstream error:', err.message)
-      socket.destroy()
-    })
-
+    upstream.on('error', (e: Error) => { console.error('WS upstream error:', e.message); socket.destroy() })
+    socket.on('data', (d: Buffer) => upstream.write(d))
     socket.on('end', () => upstream.end())
-    socket.on('error', (err: Error) => {
-      console.error('WS client error:', err.message)
-      upstream.destroy()
-    })
-
-    return // don't fall through to HTTP proxy
+    socket.on('error', (e: Error) => { console.error('WS client error:', e.message); upstream.destroy() })
+    return
   }
 
   // ── HTTP proxy ────────────────────────────────────────────
   try {
-    const axios = (await import('axios')).default
-    const response = await axios({
+    const { gotScraping } = await import('got-scraping')
+
+    const fwdHeaders: Record<string, string> = {}
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (HOP_BY_HOP.has(k) || k === 'x-proxy-password' || k === 'x-proxy-target' || k === 'host') continue
+      if (v !== undefined) fwdHeaders[k] = Array.isArray(v) ? v.join(', ') : v as string
+    }
+    fwdHeaders['host'] = new URL(targetUrl).host
+
+    const isGetOrHead = ['GET', 'HEAD'].includes(req.method?.toUpperCase() ?? 'GET')
+
+    const response = await gotScraping({
       url: targetUrl,
-      method: req.method as any,
-      headers: {
-        ...req.headers,
-        host: new URL(targetUrl).host,
-        'x-proxy-password': undefined,
-        'x-proxy-target': undefined,
-      },
-      data: ['GET', 'HEAD'].includes(req.method!) ? undefined : req.body,
-      responseType: 'arraybuffer',
-      validateStatus: () => true,
-      timeout: 0,
+      method: (req.method ?? 'GET') as any,
+      headers: fwdHeaders,
+      body: isGetOrHead ? undefined : req.body,
+      encoding: null,
+      followRedirect: true,
+      maxRedirects: 5,
+      throwHttpErrors: false,
+      timeout: { request: 30_000 },
+      https: { rejectUnauthorized: false },
     })
 
-    res.status(response.status)
-    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v as string))
-    res.send(response.data)
+    res.status(response.statusCode)
+    for (const [k, v] of Object.entries(response.headers)) {
+      if (!HOP_BY_HOP.has(k.toLowerCase()) && v !== undefined) res.setHeader(k, v as string)
+    }
+    res.send(response.rawBody)
   } catch (err) {
     fail(res, 'PROXY_ERROR', (err as Error).message)
   }
 })
 
-// ── Auto-detect + detect endpoints ───────────────────────────────────────────
+// ── Detect ────────────────────────────────────────────────────────────────────
 
-// POST /detect — sniff the page and return what challenges are present (no solving)
 router.post('/detect', guard, validateUrl, async (req, res) => {
   const { url, proxy, useProxy, country } = req.body
-
   let resolvedProxy = proxy
-  if (useProxy && !resolvedProxy) {
-    const p = nextProxy(country)
-    if (p) resolvedProxy = p
-  }
-
+  if (useProxy && !resolvedProxy) resolvedProxy = nextProxy(country) ?? undefined
   global.browserLength++
   try {
-    const result = await detect(url, resolvedProxy)
-    ok(res, result)
+    ok(res, await detect(url, resolvedProxy))
   } catch (err) {
     fail(res, 'FAILED', (err as Error).message)
   } finally {
@@ -367,10 +331,7 @@ router.post('/detect', guard, validateUrl, async (req, res) => {
   }
 })
 
-// POST /bypass/auto — detect then solve in one call
-router.post('/bypass/auto', guard, validateUrl, (req, res) =>
-  handleSolve(req, res, { mode: 'auto' })
-)
+router.post('/bypass/auto', guard, validateUrl, (req, res) => handleSolve(req, res, { mode: 'auto' }))
 
 // ── FlareSolverr compat ───────────────────────────────────────────────────────
 
