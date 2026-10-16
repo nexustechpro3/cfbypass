@@ -19,6 +19,7 @@
     "jimp": "^1.6.1",
     "onnxruntime-node": "^1.17.3",
     "patchright": "^1.50.0",
+    "tslib": "^2.6.0",
     "socks-proxy-agent": "^8.0.4",
     "typescript": "^5.5.0",
     "uuid": "^11.0.0"
