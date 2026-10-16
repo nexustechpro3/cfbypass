@@ -297,7 +297,7 @@ router.all('/use-as-proxy', async (req, res) => {
       method: (req.method ?? 'GET') as any,
       headers: fwdHeaders,
       body: isGetOrHead ? undefined : req.body,
-      encoding: null,
+      responseType: 'buffer',
       followRedirect: true,
       maxRedirects: 5,
       throwHttpErrors: false,
@@ -309,7 +309,7 @@ router.all('/use-as-proxy', async (req, res) => {
     for (const [k, v] of Object.entries(response.headers)) {
       if (!HOP_BY_HOP.has(k.toLowerCase()) && v !== undefined) res.setHeader(k, v as string)
     }
-    res.send(response.rawBody)
+    res.send(response.body)
   } catch (err) {
     fail(res, 'PROXY_ERROR', (err as Error).message)
   }

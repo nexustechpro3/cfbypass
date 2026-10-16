@@ -15,11 +15,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.19.0",
-    "got-scraping": "^4.2.2",
+    "got-scraping": "3.2.2",
     "jimp": "^1.6.1",
     "onnxruntime-node": "^1.17.3",
     "patchright": "^1.50.0",
     "socks-proxy-agent": "^8.0.4",
+    "typescript": "^5.5.0",
     "uuid": "^11.0.0"
   },
   "devDependencies": {
