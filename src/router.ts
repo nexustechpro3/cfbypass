@@ -303,6 +303,7 @@ router.all('/use-as-proxy', async (req, res) => {
       throwHttpErrors: false,
       timeout: { request: 30_000 },
       https: { rejectUnauthorized: false },
+      http2: false,
     })
 
     res.status(response.statusCode)
