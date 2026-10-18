@@ -155,7 +155,7 @@ export function score(proxyUrl: string, points: number): void {
 
 // ─── Live validation ──────────────────────────────────────────────────────────
 
-export async function validateAndScore(proxyUrl: string): Promise<ProxyEntry | null> {
+/*export async function validateAndScore(proxyUrl: string): Promise<ProxyEntry | null> {
   const entry = pool.get(proxyUrl)
   if (!entry) return null
 
@@ -181,7 +181,7 @@ export async function validateAndScore(proxyUrl: string): Promise<ProxyEntry | n
   if (newScore === 0) entry.banned = true
 
   return entry
-}
+}*/
 
 // ─── Stats ───────────────────────────────────────────────────────────────────
 
