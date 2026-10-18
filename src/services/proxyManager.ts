@@ -127,7 +127,7 @@ export function getOne(country?: string, protocol?: string): (ProxyEntry & { pro
   const candidates = [...pool.values()].filter(p => {
     if (p.banned) return false
     if (country && p.country !== country.toUpperCase()) return false
-    if (protocol && p.protocol !== protocol.toLowerCase()) return false
+    if (protocol && !p.protocol.startsWith(protocol.toLowerCase())) return false
     return true
   })
   if (!candidates.length) return null
