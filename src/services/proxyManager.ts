@@ -17,6 +17,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent'
 let pool: Map<string, ProxyEntry> = new Map()
 let lastRefresh: number | null = null
 let refreshTimer: NodeJS.Timeout | null = null
+let lastIndex = 0
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
@@ -122,16 +123,18 @@ export function next(country?: string): ProxyConfig | null {
   }
 }
 
-export function getOne(country?: string): (ProxyEntry & { proxy: string }) | null {
+export function getOne(country?: string, protocol?: string): (ProxyEntry & { proxy: string }) | null {
   const candidates = [...pool.values()].filter(p => {
     if (p.banned) return false
     if (country && p.country !== country.toUpperCase()) return false
+    if (protocol && p.protocol !== protocol.toLowerCase()) return false
     return true
   })
   if (!candidates.length) return null
   candidates.sort((a, b) => b.score - a.score)
-  const top = candidates[0]
-  return { ...top, proxy: top.url }
+  const entry = candidates[lastIndex % candidates.length]
+  lastIndex++
+  return { ...entry, proxy: entry.url }
 }
 
 // ─── Scoring & Banning ───────────────────────────────────────────────────────
