@@ -350,6 +350,52 @@ router.all('/use-as-proxy', async (req, res) => {
   }
 })
 
+
+// ── WebSocket relay ───────────────────────────────────────────────────────────
+
+router.get('/ws-relay', (req, res) => {
+  const password = req.headers['x-proxy-password'] as string
+  if (!password || password !== process.env.SERVER_PROXY_PASSWORD) {
+    res.status(401).end(); return
+  }
+
+  const targetUrl = req.headers['x-proxy-target'] as string
+  const cookieHdr = req.headers['x-proxy-cookie'] as string ?? ''
+  const uaHdr = req.headers['x-proxy-ua'] as string ?? ''
+  const queryStr = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
+
+  if (!targetUrl) { res.status(400).end(); return }
+
+  const { WebSocket: WS } = require('ws')
+
+  const upstream = new WS(`${targetUrl}${queryStr}`, {
+    headers: {
+      'Cookie': cookieHdr,
+      'User-Agent': uaHdr,
+      'Origin': req.headers['x-proxy-origin'] as string ?? '',
+      'Referer': req.headers['x-proxy-referer'] as string ?? '',
+    },
+    rejectUnauthorized: false,
+  })
+
+  const socket = (req as any).socket
+
+  upstream.on('open', () => {
+    socket.write(
+      'HTTP/1.1 101 Switching Protocols\r\n' +
+      'Upgrade: websocket\r\nConnection: Upgrade\r\n\r\n'
+    )
+  })
+
+  upstream.on('message', (data: Buffer) => socket.write(data))
+  upstream.on('close', () => socket.destroy())
+  upstream.on('error', (e: Error) => { console.error('WS relay upstream error:', e.message); socket.destroy() })
+
+  socket.on('data', (d: Buffer) => upstream.send(d))
+  socket.on('close', () => upstream.terminate())
+  socket.on('error', (e: Error) => { console.error('WS relay client error:', e.message); upstream.terminate() })
+})
+
 // ── Detect ────────────────────────────────────────────────────────────────────
 
 router.post('/detect', guard, validateUrl, async (req, res) => {
