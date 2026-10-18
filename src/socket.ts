@@ -44,7 +44,10 @@ export function attachSocketRelay(httpServer: Server): void {
             reconnection: false,
         })
 
-        upstream.onAny((event, ...args) => socket.emit(event, ...args))
+        upstream.onAny((event, ...args) => {
+            console.log(`[SocketRelay] upstream event: ${event}`, JSON.stringify(args).slice(0, 200))
+            socket.emit(event, ...args)
+        })
         socket.onAny((event, ...args) => { if (upstream.connected) upstream.emit(event, ...args) })
 
         upstream.on('connect', () => { console.log(`[SocketRelay] upstream connected → ${target} | query:`, JSON.stringify(query)) })
