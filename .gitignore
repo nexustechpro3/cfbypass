@@ -5,4 +5,3 @@ dist/
 .DS_Store
 /tmp/
 test-profile*
-package-lock.json
