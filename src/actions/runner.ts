@@ -457,12 +457,12 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
         const key = action.name ?? 'resolve'
         returned[key] = result
         await Promise.race([
-          page.waitForFunction((sel: string) => !document.querySelector(sel), selector, { timeout: 3000 }),
-          page.waitForURL(url => url.href !== page.url(), { timeout: 3000 }),
+          page.waitForFunction((sel: string) => !document.querySelector(sel), selector, { timeout: 2000 }),
+          page.waitForURL(url => url.href !== page.url(), { timeout: 2000 }),
         ]).catch(() => { })
 
         // Wait for site to process click and load next captcha
-        await sleep(3000)
+        await sleep(2000)
       } // end loop
       break
     }
