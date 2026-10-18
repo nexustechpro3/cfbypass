@@ -31,7 +31,9 @@ export function attachSocketRelay(httpServer: Server): void {
             return
         }
 
-        const upstream = ioClient(target, {
+        const namespace = socket.handshake.headers['x-proxy-namespace'] as string | undefined
+
+        const upstream = ioClient(`${target}${namespace ?? ''}`, {
             path: path ?? '/socket.io/',
             transports: ['websocket', 'polling'],
             query,
