@@ -29,6 +29,40 @@ const HOP_BY_HOP = new Set([
   'te', 'trailer', 'upgrade', 'proxy-authorization', 'proxy-connection',
 ])
 
+// ── HTTP CONNECT tunnel ───────────────────────────────────────────────────────
+router.use((req: Request, res: Response, next) => {
+  if (req.method !== 'CONNECT') return next()
+
+  const password = req.headers['x-proxy-password'] as string
+  if (!password || password !== process.env.SERVER_PROXY_PASSWORD) {
+    res.writeHead(407, 'Proxy Authentication Required')
+    res.end()
+    return
+  }
+
+  const [host, portStr] = (req.url ?? '').split(':')
+  const port = parseInt(portStr ?? '443')
+  const socket = (req as any).socket
+
+  const upstream = require('tls').connect(
+    { host, port, servername: host, rejectUnauthorized: false },
+    () => {
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+      upstream.pipe(socket)
+      socket.pipe(upstream)
+    }
+  )
+
+  upstream.on('error', (e: Error) => {
+    console.error('CONNECT tunnel error:', e.message)
+    socket.destroy()
+  })
+  socket.on('error', (e: Error) => {
+    console.error('CONNECT client error:', e.message)
+    upstream.destroy()
+  })
+})
+
 function ok(res: Response, data: unknown): void {
   res.json({ success: true, data })
 }

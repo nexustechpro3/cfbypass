@@ -159,9 +159,8 @@ export async function validateAndScore(proxyUrl: string): Promise<ProxyEntry | n
   const entry = pool.get(proxyUrl)
   if (!entry) return null
 
-  let passed = 0
-  for (const testUrl of DISCRIMINATOR_URLS) {
-    try {
+  const results = await Promise.allSettled(
+    DISCRIMINATOR_URLS.map(async testUrl => {
       const isSocks = entry.protocol.startsWith('socks')
       const agentOrProxy = isSocks
         ? { httpsAgent: new SocksProxyAgent(proxyUrl) }
@@ -173,10 +172,10 @@ export async function validateAndScore(proxyUrl: string): Promise<ProxyEntry | n
         headers: getAxiosHeaders(),
         maxRedirects: 3,
       })
-      passed++
-    } catch { /* proxy failed this target */ }
-  }
+    })
+  )
 
+  const passed = results.filter(r => r.status === 'fulfilled').length
   const newScore = Math.min(PROXY_SCORE_MAX, Math.max(0, passed + Math.floor(entry.score / 2)))
   entry.score = newScore
   if (newScore === 0) entry.banned = true
