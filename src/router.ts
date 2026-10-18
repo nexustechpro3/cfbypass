@@ -387,11 +387,14 @@ router.get('/ws-relay', (req, res) => {
     )
   })
 
-  upstream.on('message', (data: Buffer) => socket.write(data))
+  upstream.on('message', (data: Buffer, isBinary: boolean) => {
+    socket.write(isBinary ? data : Buffer.from(data.toString()))
+  })
   upstream.on('close', () => socket.destroy())
-  upstream.on('error', (e: Error) => { console.error('WS relay upstream error:', e.message); socket.destroy() })
+  upstream.on('error', (e: Error) => { console.error('WS relay upstream error:', e.message, e); socket.destroy() })
+  upstream.on('unexpected-response', (_: any, r: any) => { console.error('WS relay unexpected response:', r.statusCode, r.statusMessage); socket.destroy() })
 
-  socket.on('data', (d: Buffer) => upstream.send(d))
+  socket.on('data', (d: Buffer) => { if (upstream.readyState === upstream.OPEN) upstream.send(d) })
   socket.on('close', () => upstream.terminate())
   socket.on('error', (e: Error) => { console.error('WS relay client error:', e.message); upstream.terminate() })
 })
