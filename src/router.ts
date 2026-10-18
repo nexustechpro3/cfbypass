@@ -256,7 +256,7 @@ router.post('/session/destroy', async (req, res) => {
 router.get('/get-proxy', async (req, res) => {
   const entry = getOne(
     req.query.country as string | undefined,
-    (req.query.protocol as string | undefined) ?? 'socks5',
+    (req.query.protocol as string | undefined) ?? 'socks',
   )
   if (!entry) { fail(res, 'NO_PROXY', 'No proxy available', 503); return }
   ok(res, entry)
