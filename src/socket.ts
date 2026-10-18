@@ -47,7 +47,7 @@ export function attachSocketRelay(httpServer: Server): void {
         upstream.onAny((event, ...args) => socket.emit(event, ...args))
         socket.onAny((event, ...args) => { if (upstream.connected) upstream.emit(event, ...args) })
 
-        upstream.on('connect', () => console.log(`[SocketRelay] upstream connected → ${target}`))
+        upstream.on('connect', () => { console.log(`[SocketRelay] upstream connected → ${target} | query:`, JSON.stringify(query)) })
         upstream.on('connect_error', e => { console.error('[SocketRelay] upstream error:', e.message); socket.disconnect() })
         upstream.on('disconnect', reason => { console.warn('[SocketRelay] upstream disconnected:', reason); socket.disconnect() })
         socket.on('disconnect', () => upstream.disconnect())
