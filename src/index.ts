@@ -2,6 +2,7 @@ import 'dotenv/config'
 import http from 'http'
 import net from 'net'
 import app from './server'
+import { attachSocketRelay } from './socket'
 import { init as initBrowser, shutdown as shutdownBrowser } from './pool/browserPool'
 import { warmPool } from './pool/contextPool'
 import { start as startMemoryManager, stop as stopMemoryManager } from './pool/memoryManager'
@@ -44,6 +45,7 @@ async function start(): Promise<void> {
   await new Promise<void>(resolve => {
     server.listen(PORT, () => {
       console.log(`[NexusClearance] Server + Proxy listening on port ${PORT}`)
+      attachSocketRelay(server)
       resolve()
     })
   })
