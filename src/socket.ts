@@ -17,7 +17,8 @@ export function attachSocketRelay(httpServer: Server): void {
         next()
     })
 
-    io.on('connection', socket => {
+    // Accept ANY namespace by using a wildcard
+    io.of(/.*/).on('connection', socket => {
         const target = socket.handshake.headers['x-proxy-target'] as string
         const path = socket.handshake.headers['x-proxy-path'] as string | undefined
         const cookie = socket.handshake.headers['x-proxy-cookie'] as string | undefined
