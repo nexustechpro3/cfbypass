@@ -16,7 +16,7 @@ import { record } from './services/stats'
 import { broadcast } from './services/sse'
 import { fire as fireWebhook } from './services/webhook'
 import { getOrCreate, destroy, list } from './services/sessionStore'
-import { next as nextProxy, getOne, ban, refresh, getStats as proxyStats, validateAndScore } from './services/proxyManager'
+import { next as nextProxy, getOne, ban, refresh, getStats as proxyStats, } from './services/proxyManager'
 import { handleFlaresolverr } from './compat/flaresolverr'
 import { addClient, removeClient } from './services/sse'
 import { detect } from './detect/detector'
@@ -256,7 +256,7 @@ router.post('/session/destroy', async (req, res) => {
 router.get('/get-proxy', async (req, res) => {
   const entry = getOne(req.query.country as string | undefined)
   if (!entry) { fail(res, 'NO_PROXY', 'No proxy available', 503); return }
-  ok(res, await validateAndScore(entry.url) ?? entry)
+  ok(res, entry)
 })
 
 router.post('/proxies/ban', (req, res) => {
@@ -348,55 +348,6 @@ router.all('/use-as-proxy', async (req, res) => {
   } catch (err) {
     fail(res, 'PROXY_ERROR', (err as Error).message)
   }
-})
-
-
-// ── WebSocket relay ───────────────────────────────────────────────────────────
-
-router.get('/ws-relay', (req, res) => {
-  const password = req.headers['x-proxy-password'] as string
-  if (!password || password !== process.env.SERVER_PROXY_PASSWORD) {
-    res.status(401).end(); return
-  }
-
-  const targetUrl = req.headers['x-proxy-target'] as string
-  const cookieHdr = req.headers['x-proxy-cookie'] as string ?? ''
-  const uaHdr = req.headers['x-proxy-ua'] as string ?? ''
-  const queryStr = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
-
-  if (!targetUrl) { res.status(400).end(); return }
-
-  const { WebSocket: WS } = require('ws')
-
-  const upstream = new WS(`${targetUrl}${queryStr}`, {
-    headers: {
-      'Cookie': cookieHdr,
-      'User-Agent': uaHdr,
-      'Origin': req.headers['x-proxy-origin'] as string ?? '',
-      'Referer': req.headers['x-proxy-referer'] as string ?? '',
-    },
-    rejectUnauthorized: false,
-  })
-
-  const socket = (req as any).socket
-
-  upstream.on('open', () => {
-    socket.write(
-      'HTTP/1.1 101 Switching Protocols\r\n' +
-      'Upgrade: websocket\r\nConnection: Upgrade\r\n\r\n'
-    )
-  })
-
-  upstream.on('message', (data: Buffer, isBinary: boolean) => {
-    socket.write(isBinary ? data : Buffer.from(data.toString()))
-  })
-  upstream.on('close', () => socket.destroy())
-  upstream.on('error', (e: Error) => { console.error('WS relay upstream error:', e.message, e); socket.destroy() })
-  upstream.on('unexpected-response', (_: any, r: any) => { console.error('WS relay unexpected response:', r.statusCode, r.statusMessage); socket.destroy() })
-
-  socket.on('data', (d: Buffer) => { if (upstream.readyState === upstream.OPEN) upstream.send(d) })
-  socket.on('close', () => upstream.terminate())
-  socket.on('error', (e: Error) => { console.error('WS relay client error:', e.message); upstream.terminate() })
 })
 
 // ── Detect ────────────────────────────────────────────────────────────────────
