@@ -333,7 +333,11 @@ router.all('/use-as-proxy', async (req, res) => {
       url: targetUrl,
       method: (req.method ?? 'GET') as any,
       headers: fwdHeaders,
-      body: isGetOrHead ? undefined : req.body,
+      body: isGetOrHead ? undefined : (
+        typeof req.body === 'object' && req.headers['content-type']?.includes('x-www-form-urlencoded')
+          ? new URLSearchParams(req.body).toString()  // 👈 re-encode object back to string
+          : req.body
+      ),
       responseType: 'buffer',
       followRedirect: true,
       maxRedirects: 5,
