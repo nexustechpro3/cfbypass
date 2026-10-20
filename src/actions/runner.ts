@@ -206,7 +206,7 @@ async function runAction(page: Page, action: ActionItem, returned: Record<string
       const timeout = action.timeout ?? 20000
       const maxLoops = action.maxSolves ?? 9
       for (let _loop = 0; _loop < maxLoops; _loop++) {
-        await page.waitForSelector(selector, { timeout }).catch(() => { })
+        await page.waitForSelector(selector, { timeout: 1500 }).catch(() => { })
         const isVisible = await page.evaluate((sel) => {
           const el = document.querySelector(sel)
           if (!el) return false
