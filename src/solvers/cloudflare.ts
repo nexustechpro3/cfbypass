@@ -78,7 +78,7 @@ async function clickTurnstileCheckbox(page: Page): Promise<boolean> {
   }
 }
 
-async function attemptCFSolve(page: Page): Promise<string | null> {
+export async function attemptCFSolve(page: Page): Promise<string | null> {
   const t = global.timeOut
   for (let attempt = 0; attempt < 5; attempt++) {
     const title = await page.title().catch(() => '')
