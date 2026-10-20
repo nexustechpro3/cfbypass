@@ -164,7 +164,7 @@ export async function bypassCloudflare(req: BypassRequest): Promise<BypassResult
     const finalUrl = page.url()
     const source = req.getPageSource ? await page.content().catch(() => null) : null
     const token = req.siteKey || mode === 'turnstile-max' ? await waitForToken(page, 5000) : null
-    const requestProfile = await buildRequestProfile(page, ctx)
+    const requestProfile = await buildRequestProfile(page, ctx, !!req.actions?.length)
     return {
       token,
       cf_clearance: cfClearance,
