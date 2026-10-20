@@ -2,6 +2,7 @@ import { Page } from 'patchright'
 import axios from 'axios'
 import type { ActionItem } from '../types'
 import { waitForCF, sleep, safeClick } from '../solvers/base'
+import { attemptCFSolve } from '../solvers/cloudflare'
 
 function generateTrace(targetX: number, targetY: number): Array<[number, number, number]> {
   const startX = Math.floor(Math.random() * 800 + 100)
@@ -35,6 +36,7 @@ export async function runActions(page: Page, actions: ActionItem[], returned: Re
   for (const action of actions) {
     await acquire()
     try {
+      await attemptCFSolve(page)
       await runAction(page, action, returned)
     } catch (err) {
       console.error(`[Actions] Action "${action.type}" failed:`, err)
