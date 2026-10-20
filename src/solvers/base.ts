@@ -198,14 +198,14 @@ export function buildProxyUrl(proxy: ProxyConfig): string {
   return `${scheme}://${proxy.host}:${proxy.port}`
 }
 
-export async function buildRequestProfile(page: Page, ctx: BrowserContext): Promise<Record<string, unknown>> {
+export async function buildRequestProfile(page: Page, ctx: BrowserContext, skipReload = false): Promise<Record<string, unknown>> {
   let capturedHeaders: Record<string, string> = {}
   try {
     const client = await ctx.newCDPSession(page)
     await client.send('Network.enable')
     await new Promise<void>(resolve => {
       client.on('Network.requestWillBeSent', evt => { if (!Object.keys(capturedHeaders).length && evt.request?.headers) { capturedHeaders = evt.request.headers } resolve() })
-      page.reload({ timeout: 8000 }).catch(() => { })
+      if (!skipReload) page.reload({ timeout: 8000 }).catch(() => { })
       setTimeout(resolve, 5000)
     })
     await client.detach().catch(() => { })
